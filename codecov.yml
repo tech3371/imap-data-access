@@ -1,0 +1,12 @@
+coverage:
+  status:
+    patch:
+      default:
+        target: 90%
+        paths:
+          - imap_data_access/**/*.py
+    project:
+      default:
+        target: 90%
+        paths:
+          - imap_data_access/**/*.py
