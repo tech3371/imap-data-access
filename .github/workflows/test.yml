@@ -29,7 +29,8 @@ jobs:
 
       - name: Install the application
         run: |
-          pip install .
+          # With testing dependencies
+          pip install .[test]
 
       - name: Testing
         id: test
