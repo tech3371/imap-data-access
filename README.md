@@ -24,7 +24,7 @@ imap-data-access download imap/swe/l0/2024/01/imap_swe_l0_sci_20240105_20240105_
 
 ```bash
 # Upload an l1a file after decoding the l0 CCSDS ".pkts" file
-imap-data-access upload imap/swe/l0/2024/01/imap_swe_l1a_sci_20240105_20240105_v00-00.cdf
+imap-data-access upload imap/swe/l1a/2024/01/imap_swe_l1a_sci_20240105_20240105_v00-00.cdf
 ```
 
 ## Importing as a package
