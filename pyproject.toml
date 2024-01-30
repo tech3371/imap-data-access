@@ -12,7 +12,6 @@ license = {text = "MIT"}
 keywords = ["IMAP", "SDC", "SOC", "SDS", "Science Operations"]
 classifiers = [
     "Development Status :: 3 - Alpha",
-    "Intended Audience :: SDS Users",
     "License :: OSI Approved :: MIT License",
     "Natural Language :: English",
     "Programming Language :: Python :: 3",
