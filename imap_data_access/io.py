@@ -14,12 +14,12 @@ import imap_data_access
 logger = logging.getLogger(__name__)
 
 
-def download(file_path: str) -> Path:
+def download(file_path: Path | str) -> Path:
     """Download a file from the data archive.
 
     Parameters
     ----------
-    file_path : str
+    file_path : pathlib.Path or str
         Name of the file to download, optionally including the directory path
 
     Returns
@@ -28,7 +28,7 @@ def download(file_path: str) -> Path:
         Path to the downloaded file
     """
     destination = imap_data_access.config["DATA_DIR"]
-    if "/" not in file_path:
+    if isinstance(file_path, str) and "/" not in file_path:
         # Construct the directory structure from the filename
         # This is for science files that contain the directory structure in the filename
         # Otherwise, we assume the full path to the file was given
