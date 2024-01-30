@@ -35,6 +35,8 @@ def _set_mock_data(mock_urlopen, data):
         ),
         # Directory structure provided in the request
         ("imap/test/config/file.txt", "imap/test/config/file.txt"),
+        # Pathlib.Path object
+        (Path("imap/test/config/file.txt"), "imap/test/config/file.txt"),
     ],
 )
 def test_download(mock_urlopen, file_path, destination):
