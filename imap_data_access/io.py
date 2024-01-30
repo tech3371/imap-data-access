@@ -6,7 +6,7 @@ import json
 import logging
 import urllib.request
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Union
 from urllib.parse import urlencode
 
 import imap_data_access
@@ -14,7 +14,7 @@ import imap_data_access
 logger = logging.getLogger(__name__)
 
 
-def download(file_path: Path | str) -> Path:
+def download(file_path: Union[Path, str]) -> Path:
     """Download a file from the data archive.
 
     Parameters
