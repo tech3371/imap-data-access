@@ -32,7 +32,7 @@ Download a level 0 SWE file on 2024/01/05
 
 ```bash
 $ imap-data-access download imap/swe/l0/2024/01/imap_swe_l0_sci_20240105_20240105_v00-00.pkts
-Downloaded the file to: <IMAP_DATA_DIR>/imap/swe/l0/2024/01/imap_swe_l0_sci_20240105_20240105_v00-00.pkts
+Successfully downloaded the file to: <IMAP_DATA_DIR>/imap/swe/l0/2024/01/imap_swe_l0_sci_20240105_20240105_v00-00.pkts
 ```
 
 ### Upload a file
@@ -41,7 +41,7 @@ Upload an l1a file after decoding the l0 CCSDS ".pkts" file
 
 ```bash
 $ imap-data-access upload imap/swe/l1a/2024/01/imap_swe_l1a_sci_20240105_20240105_v00-00.cdf
-Uploaded file to the SDC from: <IMAP_DATA_DIR>/imap/swe/l1a/2024/01/imap_swe_l1a_sci_20240105_20240105_v00-00.cdf
+Successfully uploaded the file to the IMAP SDC
 ```
 
 ## Importing as a package
