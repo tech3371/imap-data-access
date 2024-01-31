@@ -167,6 +167,11 @@ def main():
     )
 
     parser = argparse.ArgumentParser(prog="imap-data-access", description=description)
+    parser.add_argument(
+        "--version",
+        action="version",
+        version=f"%(prog)s {imap_data_access.__version__}",
+    )
     parser.add_argument("--data-dir", type=Path, required=False, help=data_dir_help)
     parser.add_argument("--url", type=str, required=False, help=url_help)
     # Logging level
