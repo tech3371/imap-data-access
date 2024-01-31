@@ -16,6 +16,7 @@ Use
 """
 import argparse
 import logging
+import os
 from pathlib import Path
 
 import imap_data_access
@@ -31,6 +32,50 @@ def _download_parser(args: argparse.Namespace):
     """
     output_path = imap_data_access.download(args.file_path)
     print(f"Downloaded the file to: {output_path}")
+
+
+def _print_query_results_table(query_results):
+    """Print the query results in a table.
+
+    Parameters
+    ----------
+    query_results : list
+        A list of dictionaries containing the query results
+    """
+    num_files = len(query_results)
+    print(f"Found [{num_files}] matching files")
+    if num_files == 0:
+        return
+    format_string = "{:<10}|{:<10}|{:<10}|{:<10}|{:<8}|{:<7}|{:<50}|"
+    # Add hyphens for a separator between header and data
+    hyphens = "-" * 111 + "|"
+    print(hyphens)
+    header = [
+        "Instrument",
+        "Data Level",
+        "Descriptor",
+        "Start Date",
+        "End Date",
+        "Version",
+        "Filename",
+    ]
+    print(format_string.format(*header))
+    print(hyphens)
+
+    # Print data
+    for item in query_results:
+        values = [
+            item["instrument"],
+            item["data_level"],
+            item["descriptor"],
+            item["start_date"],
+            item["end_date"],
+            item["version"],
+            os.path.basename(item["file_path"]),
+        ]
+        print(format_string.format(*values))
+    # Close the table
+    print(hyphens)
 
 
 def _query_parser(args: argparse.Namespace):
@@ -56,10 +101,13 @@ def _query_parser(args: argparse.Namespace):
         for key, value in vars(args).items()
         if key in valid_args and value is not None
     }
-    output = imap_data_access.query(**query_params)
-    num_files = len(output)
-    print(f"Found [{num_files}] files matching {query_params}:")
-    print(output)
+    query_results = imap_data_access.query(**query_params)
+
+    if args.output_format == "table":
+        _print_query_results_table(query_results)
+    elif args.output_format == "json":
+        # Dump the content directly
+        print(query_results)
 
 
 def _upload_parser(args: argparse.Namespace):
@@ -109,7 +157,7 @@ def main():
     )
 
     parser = argparse.ArgumentParser(prog="imap-data-access", description=description)
-    parser.add_argument("--data_dir", type=str, required=False, help=data_dir_help)
+    parser.add_argument("--data-dir", type=Path, required=False, help=data_dir_help)
     parser.add_argument("--url", type=str, required=False, help=url_help)
     # Logging level
     parser.add_argument(
@@ -156,7 +204,7 @@ def main():
         ],
     )
     query_parser.add_argument(
-        "--data_level",
+        "--data-level",
         type=str,
         required=False,
         help="Data level of the product (l0, l1a, l2, etc.)",
@@ -168,10 +216,10 @@ def main():
         help="Descriptor of the product (raw, burst, etc.)",
     )
     query_parser.add_argument(
-        "--start_date", type=str, required=False, help="Start date in YYYYMMDD format"
+        "--start-date", type=str, required=False, help="Start date in YYYYMMDD format"
     )
     query_parser.add_argument(
-        "--end_date", type=str, required=False, help="End date in YYYYMMDD format"
+        "--end-date", type=str, required=False, help="End date in YYYYMMDD format"
     )
     query_parser.add_argument(
         "--version",
@@ -181,6 +229,14 @@ def main():
     )
     query_parser.add_argument(
         "--extension", type=str, required=False, help="File extension (cdf, pkts, etc.)"
+    )
+    query_parser.add_argument(
+        "--output-format",
+        type=str,
+        required=False,
+        help="How to format the output, default is 'table'",
+        choices=["table", "json"],
+        default="table",
     )
     query_parser.set_defaults(func=_query_parser)
 
@@ -195,7 +251,7 @@ def main():
 
     if args.data_dir:
         # We got an explicit data directory from the command line
-        data_path = Path(args.data_dir)
+        data_path = args.data_dir.resolve()
         if not data_path.exists():
             raise ValueError(f"Data directory {args.data_dir} does not exist")
         # Set the data directory to the user-supplied value
