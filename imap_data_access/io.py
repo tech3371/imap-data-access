@@ -156,15 +156,16 @@ def query(
     return items
 
 
-def upload(file_path: Path) -> None:
+def upload(file_path: Union[Path, str]) -> None:
     """Upload a file to the data archive.
 
     Parameters
     ----------
-    file_path : pathlib.Path
+    file_path : pathlib.Path or str
         Path to the file to upload. It must be located within
         the ``imap_data_access.config["DATA_DIR"]`` directory.
     """
+    file_path = Path(file_path).resolve()
     if not file_path.exists():
         raise FileNotFoundError(file_path)
 
@@ -179,7 +180,7 @@ def upload(file_path: Path) -> None:
 
     url = f"{imap_data_access.config['DATA_ACCESS_URL']}"
     # The upload name needs to be given as a path parameter
-    url += f"/upload/science/{upload_name}"
+    url += f"/upload/{upload_name}"
     logger.info("Uploading file %s to %s", file_path, url)
 
     # We send a GET request with the filename and the server

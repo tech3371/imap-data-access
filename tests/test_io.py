@@ -1,4 +1,5 @@
 import json
+import os
 from io import BytesIO
 from pathlib import Path
 from unittest.mock import patch
@@ -161,14 +162,20 @@ def test_upload_not_relative_to_base(monkeypatch, mock_urlopen):
     assert mock_urlopen.call_count == 0
 
 
-def test_upload(mock_urlopen):
+@pytest.mark.parametrize(
+    "upload_file_path", ["a/b/test-file.txt", Path("a/b/test-file.txt")]
+)
+def test_upload(mock_urlopen, upload_file_path):
     _set_mock_data(mock_urlopen, b'"https://s3-test-bucket.com"')
     # Call the upload function
-    file_to_upload = imap_data_access.config["DATA_DIR"] / "test-file.txt"
+    file_to_upload = imap_data_access.config["DATA_DIR"] / upload_file_path
+    file_to_upload.parent.mkdir(parents=True, exist_ok=True)
     with open(file_to_upload, "wb") as f:
         f.write(b"test file content")
     assert file_to_upload.exists()
-    imap_data_access.upload(file_to_upload)
+
+    os.chdir(imap_data_access.config["DATA_DIR"])
+    imap_data_access.upload(upload_file_path)
 
     # Should have been two calls to urlopen
     # 1. To get the s3 upload url
@@ -187,7 +194,7 @@ def test_upload(mock_urlopen):
     urlopen_call = mock_calls[0]
     request_sent = urlopen_call.args[0]
     called_url = request_sent.full_url
-    expected_url_encoded = "https://api.test.com/upload/science/test-file.txt"
+    expected_url_encoded = "https://api.test.com/upload/a/b/test-file.txt"
     assert called_url == expected_url_encoded
     assert request_sent.method == "GET"
 
