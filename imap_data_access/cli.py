@@ -30,8 +30,11 @@ def _download_parser(args: argparse.Namespace):
     args : argparse.Namespace
         An object containing the parsed arguments and their values
     """
-    output_path = imap_data_access.download(args.file_path)
-    print(f"Downloaded the file to: {output_path}")
+    try:
+        output_path = imap_data_access.download(args.file_path)
+        print(f"Successfully downloaded the file to: {output_path}")
+    except imap_data_access.io.IMAPDataAccessError as e:
+        print(e)
 
 
 def _print_query_results_table(query_results):
@@ -101,7 +104,11 @@ def _query_parser(args: argparse.Namespace):
         for key, value in vars(args).items()
         if key in valid_args and value is not None
     }
-    query_results = imap_data_access.query(**query_params)
+    try:
+        query_results = imap_data_access.query(**query_params)
+    except imap_data_access.io.IMAPDataAccessError as e:
+        print(e)
+        return
 
     if args.output_format == "table":
         _print_query_results_table(query_results)
@@ -118,8 +125,11 @@ def _upload_parser(args: argparse.Namespace):
     args : argparse.Namespace
         An object containing the parsed arguments and their values
     """
-    imap_data_access.upload(args.file_path)
-    print(f"Uploaded file to the SDC from: {args.file_path}")
+    try:
+        imap_data_access.upload(args.file_path)
+        print("Successfully uploaded the file to the IMAP SDC")
+    except imap_data_access.io.IMAPDataAccessError as e:
+        print(e)
 
 
 def main():
