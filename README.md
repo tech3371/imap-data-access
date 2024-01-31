@@ -6,25 +6,42 @@ This lightweight  Python package allows users to download, query, and upload dat
 
 ### Query / Search for data
 
+Find all files from the SWE instrument
+
 ```bash
-# Find all files from the SWE instrument
-imap-data-access query --instrument swe
-# Find all files during the year 2024
-imap-data-access query --start_date 20240101 --end_date 20241231
+$ imap-data-access query --instrument swe
+Found [2] matching files
+---------------------------------------------------------------------------------------------------------------|
+Instrument|Data Level|Descriptor|Start Date|End Date|Version|Filename                                          |
+---------------------------------------------------------------------------------------------------------------|
+swe       |l0        |sci       |20240105  |20240105|v00-05 |imap_swe_l0_sci_20240105_20240105_v00-05.pkts     |
+swe       |l0        |sci       |20240105  |20240105|v00-01 |imap_swe_l0_sci_20240105_20240105_v00-01.pkts     |
+---------------------------------------------------------------------------------------------------------------|
+```
+
+Find all files during the year 2024 and return the response as raw json
+
+```bash
+$ imap-data-access query --start-date 20240101 --end-date 20241231 --output-format json
+[{'file_path': 'imap/swe/l0/2024/01/imap_swe_l0_sci_20240105_20240105_v00-05.pkts', 'instrument': 'swe', 'data_level': 'l0', 'descriptor': 'sci', 'start_date': '20240105', 'end_date': '20240105', 'version': 'v00-05', 'extension': 'pkts'}, {'file_path': 'imap/swe/l0/2024/01/imap_swe_l0_sci_20240105_20240105_v00-01.pkts', 'instrument': 'swe', 'data_level': 'l0', 'descriptor': 'sci', 'start_date': '20240105', 'end_date': '20240105', 'version': 'v00-01', 'extension': 'pkts'}]
 ```
 
 ### Download a file
 
+Download a level 0 SWE file on 2024/01/05
+
 ```bash
-# Level 0 SWE file on 2024/01/05
-imap-data-access download imap/swe/l0/2024/01/imap_swe_l0_sci_20240105_20240105_v00-00.pkts
+$ imap-data-access download imap/swe/l0/2024/01/imap_swe_l0_sci_20240105_20240105_v00-00.pkts
+Downloaded the file to: <IMAP_DATA_DIR>/imap/swe/l0/2024/01/imap_swe_l0_sci_20240105_20240105_v00-00.pkts
 ```
 
 ### Upload a file
 
+Upload an l1a file after decoding the l0 CCSDS ".pkts" file
+
 ```bash
-# Upload an l1a file after decoding the l0 CCSDS ".pkts" file
-imap-data-access upload imap/swe/l1a/2024/01/imap_swe_l1a_sci_20240105_20240105_v00-00.cdf
+$ imap-data-access upload imap/swe/l1a/2024/01/imap_swe_l1a_sci_20240105_20240105_v00-00.cdf
+Uploaded file to the SDC from: <IMAP_DATA_DIR>/imap/swe/l1a/2024/01/imap_swe_l1a_sci_20240105_20240105_v00-00.cdf
 ```
 
 ## Importing as a package
@@ -34,9 +51,8 @@ import imap_data_access
 
 # Search for files
 results = imap_data_access.query(instrument="mag", data_level="l0")
-# TODO: Update with example of return
-# list of dictionaries
-# []
+# results is a list of dictionaries
+# [{'file_path': 'imap/swe/l0/2024/01/imap_swe_l0_sci_20240105_20240105_v00-05.pkts', 'instrument': 'swe', 'data_level': 'l0', 'descriptor': 'sci', 'start_date': '20240105', 'end_date': '20240105', 'version': 'v00-05', 'extension': 'pkts'}, {'file_path': 'imap/swe/l0/2024/01/imap_swe_l0_sci_20240105_20240105_v00-01.pkts', 'instrument': 'swe', 'data_level': 'l0', 'descriptor': 'sci', 'start_date': '20240105', 'end_date': '20240105', 'version': 'v00-01', 'extension': 'pkts'}]
 
 # Download a file that was returned from the search
 imap_data_access.download("imap/mag/l0/2024/01/imap_mag_l0_raw_202040101_20240101_v00-00.pkts")
