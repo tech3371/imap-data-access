@@ -2,16 +2,48 @@
 # ruff: noqa: PLR0913 S310
 # too many arguments, but we want all of these explicitly listed
 # potentially unsafe usage of urlopen, but we aren't concerned here
+import contextlib
 import json
 import logging
 import urllib.request
 from pathlib import Path
 from typing import Optional, Union
+from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
 
 import imap_data_access
 
 logger = logging.getLogger(__name__)
+
+
+class IMAPDataAccessError(Exception):
+    """Base class for exceptions in this module."""
+
+    pass
+
+
+@contextlib.contextmanager
+def _get_url_response(request: urllib.request.Request):
+    """Get the response from a URL request.
+
+    This is a helper function to make it easier to handle
+    the different types of errors that can occur when
+    opening a URL and write out the response body.
+    """
+    try:
+        # Open the URL and yield the response
+        with urllib.request.urlopen(request) as response:
+            yield response
+
+    except HTTPError as e:
+        message = (
+            f"HTTP Error: {e.code} - {e.reason}\n"
+            f"Server Message: {e.read().decode('utf-8')}"
+        )
+        raise IMAPDataAccessError(message) from e
+    except URLError as e:
+        message = f"URL Error: {e.reason}"
+        raise IMAPDataAccessError(message) from e
 
 
 def download(file_path: Union[Path, str]) -> Path:
@@ -55,7 +87,7 @@ def download(file_path: Union[Path, str]) -> Path:
     # Create a request with the provided URL
     request = urllib.request.Request(url, method="GET")
     # Open the URL and download the file
-    with urllib.request.urlopen(request) as response:
+    with _get_url_response(request) as response:
         logger.debug("Received response: %s", response)
         # Save the file locally with the same filename
         destination.parent.mkdir(parents=True, exist_ok=True)
@@ -114,7 +146,7 @@ def query(
 
     logger.info("Querying data archive for %s with url %s", query_params, url)
     request = urllib.request.Request(url, method="GET")
-    with urllib.request.urlopen(request) as response:
+    with _get_url_response(request) as response:
         # Retrieve the response as a list of files
         items = response.read().decode("utf-8")
         logger.debug("Received response: %s", items)
@@ -155,7 +187,7 @@ def upload(file_path: Path) -> None:
     # to upload the file to the data archive
     request = urllib.request.Request(url, method="GET")
 
-    with urllib.request.urlopen(request) as response:
+    with _get_url_response(request) as response:
         # Retrieve the key for the upload
         s3_url = response.read().decode("utf-8")
         logger.debug("Received s3 presigned URL: %s", s3_url)
@@ -166,5 +198,5 @@ def upload(file_path: Path) -> None:
         request = urllib.request.Request(
             s3_url, data=local_file.read(), method="PUT", headers={"Content-Type": ""}
         )
-        with urllib.request.urlopen(request) as response:
+        with _get_url_response(request) as response:
             logger.debug("Received response: %s", response.read().decode("utf-8"))

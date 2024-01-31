@@ -1,6 +1,8 @@
 import json
+from io import BytesIO
 from pathlib import Path
 from unittest.mock import patch
+from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
 from urllib.request import Request
 
@@ -23,6 +25,20 @@ def _set_mock_data(mock_urlopen, data):
     """Set the data returned by the mock urlopen."""
     mock_response = mock_urlopen.return_value.__enter__.return_value
     mock_response.read.return_value = data
+
+
+def test_request_errors(mock_urlopen):
+    # Set up the mock to raise an HTTPError
+    mock_urlopen.side_effect = HTTPError(
+        url="http://example.com", code=404, msg="Not Found", hdrs={}, fp=BytesIO()
+    )
+    with pytest.raises(imap_data_access.io.IMAPDataAccessError, match="HTTP Error"):
+        imap_data_access.download("test/test.txt")
+
+    # Set up the mock to raise a URLError
+    mock_urlopen.side_effect = URLError(reason="Not Found")
+    with pytest.raises(imap_data_access.io.IMAPDataAccessError, match="URL Error"):
+        imap_data_access.download("test/test.txt")
 
 
 @pytest.mark.parametrize(
