@@ -10,7 +10,7 @@ from pathlib import Path
 from imap_data_access.io import download, query, upload
 
 __all__ = ["query", "download", "upload"]
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 
 
 config = {
