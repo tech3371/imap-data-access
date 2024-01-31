@@ -58,7 +58,6 @@ def _query_parser(args: argparse.Namespace):
     }
     output = imap_data_access.query(**query_params)
     num_files = len(output)
-    print(type(output))
     print(f"Found [{num_files}] files matching {query_params}:")
     print(output)
 
@@ -71,8 +70,8 @@ def _upload_parser(args: argparse.Namespace):
     args : argparse.Namespace
         An object containing the parsed arguments and their values
     """
-    output_path = imap_data_access.upload(args.file_path)
-    print(f"Uploaded file to the SDC from: {output_path}")
+    imap_data_access.upload(args.file_path)
+    print(f"Uploaded file to the SDC from: {args.file_path}")
 
 
 def main():
