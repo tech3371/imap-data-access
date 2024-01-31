@@ -176,7 +176,10 @@ def upload(file_path: Union[Path, str]) -> None:
         )
 
     # Strip off the data directory to get the upload path + name
-    upload_name = str(file_path.relative_to(imap_data_access.config["DATA_DIR"]))
+    # Must be posix style for the URL
+    upload_name = str(
+        file_path.relative_to(imap_data_access.config["DATA_DIR"]).as_posix()
+    )
 
     url = f"{imap_data_access.config['DATA_ACCESS_URL']}"
     # The upload name needs to be given as a path parameter
