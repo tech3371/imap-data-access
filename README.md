@@ -31,16 +31,16 @@ $ imap-data-access query --start-date 20240101 --end-date 20241231 --output-form
 Download a level 0 SWE file on 2024/01/05
 
 ```bash
-$ imap-data-access download imap/swe/l0/2024/01/imap_swe_l0_sci_20240105_20240105_v00-00.pkts
-Successfully downloaded the file to: <IMAP_DATA_DIR>/imap/swe/l0/2024/01/imap_swe_l0_sci_20240105_20240105_v00-00.pkts
+$ imap-data-access download imap/swe/l0/2024/01/imap_swe_l0_sci_20240105_20240105_v00-01.pkts
+Successfully downloaded the file to: <IMAP_DATA_DIR>/imap/swe/l0/2024/01/imap_swe_l0_sci_20240105_20240105_v00-01.pkts
 ```
 
 ### Upload a file
 
-Upload an l1a file after decoding the l0 CCSDS ".pkts" file
+Upload a l1a file after decoding the l0 CCSDS ".pkts" file
 
 ```bash
-$ imap-data-access upload imap/swe/l1a/2024/01/imap_swe_l1a_sci_20240105_20240105_v00-00.cdf
+$ imap-data-access upload /imap/swe/l1a/2024/01/imap_swe_l1a_sci_20240105_20240105_v00-00.cdf
 Successfully uploaded the file to the IMAP SDC
 ```
 
@@ -58,7 +58,7 @@ results = imap_data_access.query(instrument="mag", data_level="l0")
 imap_data_access.download("imap/mag/l0/2024/01/imap_mag_l0_raw_202040101_20240101_v00-00.pkts")
 
 # Upload a calibration file that exists locally
-imap_data_access.upload("imap/mag/calibration/test_calibration.txt")
+imap_data_access.upload("imap/swe/l1a/2024/01/imap_swe_l1a_sci_20240105_20240105_v00-00.cdf")
 ```
 
 ## Configuration
@@ -74,6 +74,8 @@ and the SDC.
 A user's root data location can be specified as an environment
 variable ``IMAP_DATA_DIR`` or through a configuration dictionary
 within the package itself ``imap_data_access.config["DATA_DIR"]``.
+If the ``IMAP_DATA_DIR`` variable is not set, the program defaults
+to the user's current working directory + ``data/``.
 
 The following is the directory structure the IMAP SDC uses.
 
