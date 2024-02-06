@@ -196,12 +196,18 @@ def main():
 
     # Download command
     subparsers = parser.add_subparsers(required=True)
-    parser_download = subparsers.add_parser("download", help=download_help, description=download_help)
+    parser_download = subparsers.add_parser(
+        "download",
+        help=download_help,
+        description=download_help)
     parser_download.add_argument("file_path", type=Path, help=file_path_help)
     parser_download.set_defaults(func=_download_parser)
 
     # Query command (with optional arguments)
-    query_parser = subparsers.add_parser("query", help=query_help, description=query_help)
+    query_parser = subparsers.add_parser(
+        "query",
+        help=query_help,
+        description=query_help)
     query_parser.add_argument(
         "--instrument",
         type=str,
@@ -258,7 +264,10 @@ def main():
     query_parser.set_defaults(func=_query_parser)
 
     # Upload command
-    parser_upload = subparsers.add_parser("upload", help=upload_help, description=upload_help)
+    parser_upload = subparsers.add_parser(
+        "upload",
+        help=upload_help,
+        description=upload_help)
     parser_upload.add_argument("file_path", type=Path, help=file_path_help)
     parser_upload.set_defaults(func=_upload_parser)
 
