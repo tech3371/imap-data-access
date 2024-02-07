@@ -137,23 +137,20 @@ def main():
 
     Run the command line interface to the IMAP Data Access API.
     """
-    description = (
-        "This command line program accesses the IMAP SDC APIs to query, download, "
-        "and upload data files."
-    )
     data_dir_help = (
         "Directory to use for reading and writing IMAP data. "
         "The default is a 'data/' folder in the "
         "current working directory. This can also be "
         "set using the IMAP_DATA_DIR environment variable."
     )
-    url_help = (
-        "URL of the IMAP SDC API. "
-        "The default is https://api.dev.imap-mission.com. This can also be "
-        "set using the IMAP_DATA_ACCESS_URL environment variable."
+    description = (
+        "This command line program accesses the IMAP SDC APIs to query, download, "
+        "and upload data files."
     )
     download_help = (
         "Download a file from the IMAP SDC to the locally configured data directory. "
+    )
+    file_path_help = (
         "This must be the full path to the file."
         "\nE.g. imap/mag/l0/2025/01/imap_mag_l0_raw_20250101_20250101_v00-00.pkts"
     )
@@ -164,6 +161,11 @@ def main():
     upload_help = (
         "Upload a file to the IMAP SDC. This must be the full path to the file."
         "\nE.g. imap/mag/l0/2025/01/imap_mag_l0_raw_20250101_20250101_v00-00.pkts"
+    )
+    url_help = (
+        "URL of the IMAP SDC API. "
+        "The default is https://api.dev.imap-mission.com. This can also be "
+        "set using the IMAP_DATA_ACCESS_URL environment variable."
     )
 
     parser = argparse.ArgumentParser(prog="imap-data-access", description=description)
@@ -194,12 +196,16 @@ def main():
 
     # Download command
     subparsers = parser.add_subparsers(required=True)
-    parser_download = subparsers.add_parser("download")
-    parser_download.add_argument("file_path", type=Path, help=download_help)
+    parser_download = subparsers.add_parser(
+        "download", help=download_help, description=download_help
+    )
+    parser_download.add_argument("file_path", type=Path, help=file_path_help)
     parser_download.set_defaults(func=_download_parser)
 
     # Query command (with optional arguments)
-    query_parser = subparsers.add_parser("query", help=query_help)
+    query_parser = subparsers.add_parser(
+        "query", help=query_help, description=query_help
+    )
     query_parser.add_argument(
         "--instrument",
         type=str,
@@ -256,8 +262,10 @@ def main():
     query_parser.set_defaults(func=_query_parser)
 
     # Upload command
-    parser_upload = subparsers.add_parser("upload")
-    parser_upload.add_argument("file_path", type=Path, help=upload_help)
+    parser_upload = subparsers.add_parser(
+        "upload", help=upload_help, description=upload_help
+    )
+    parser_upload.add_argument("file_path", type=Path, help=file_path_help)
     parser_upload.set_defaults(func=_upload_parser)
 
     # Parse the arguments and set the values
