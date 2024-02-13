@@ -47,8 +47,8 @@ def test_request_errors(mock_urlopen):
     [
         # Directory structure inferred
         (
-            "imap_test_l1_test-description_20100101_20100102_v00-00.cdf",
-            "test/l1/2010/01/imap_test_l1_test-description_20100101_20100102_v00-00.cdf",
+            "imap_swe_l1_test-description_20100101_20100102_v00-00.cdf",
+            "imap/swe/l1/2010/01/imap_swe_l1_test-description_20100101_20100102_v00-00.cdf",
         ),
         # Directory structure provided in the request
         ("imap/test/config/file.txt", "imap/test/config/file.txt"),
@@ -104,8 +104,8 @@ def test_download_already_exists(mock_urlopen):
     [
         # All parameters should send full query
         {
-            "instrument": "test-instrument",
-            "data_level": "test-level",
+            "instrument": "swe",
+            "data_level": "l0",
             "descriptor": "test-description",
             "start_date": "20100101",
             "end_date": "20100102",
@@ -113,7 +113,7 @@ def test_download_already_exists(mock_urlopen):
             "extension": "pkts",
         },
         # Make sure not all query params are sent if they are missing
-        {"instrument": "test-instrument", "data_level": "test-level"},
+        {"instrument": "swe", "data_level": "l0"},
     ],
 )
 def test_query(mock_urlopen, query_params):

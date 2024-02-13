@@ -64,14 +64,14 @@ def download(file_path: Union[Path, str]) -> Path:
         # Construct the directory structure from the filename
         # This is for science files that contain the directory structure in the filename
         # Otherwise, we assume the full path to the file was given
-        parts = file_path.split("_")
-        instrument = parts[1]
-        datalevel = parts[2]
-        startdate = parts[4]
-        year = startdate[:4]
-        month = startdate[4:6]
-        destination = destination / instrument / datalevel / year / month
-    destination /= file_path
+
+        science_file_path = imap_data_access.ScienceFilePath(
+            file_path, data_dir=destination
+        )
+
+        destination = science_file_path.construct_path()
+    else:
+        destination /= file_path
 
     # Only download if the file doesn't already exist
     # TODO: Do we want to verify any hashes to make sure we have the right file?

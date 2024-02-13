@@ -148,3 +148,26 @@ continue to encounter this, reach out to the IMAP SDC at
 This could mean that the local data directory is not set
 up with the same paths as the SDC. See the [data directory](#data-directory)
 section for an example of how to set this up.
+
+## File Validation
+
+This package validates filenames and paths to check they follow our standards, as defined by the filename conventions. There is also a class available for
+use by other packages to create filepaths and filenames that follow the IMAP SDC conventions.
+
+To use this class, use `imap_data_access.ScienceFilepath`.
+
+Usage:
+
+```python
+
+science_file = imap_data_access.ScienceFilePath("imap_swe_l0_sci_20240105_20240105_v00-05.pkts")
+
+# Filepath = /imap/swe/l0/2024/01/imap_swe_l0_sci_20240105_20240105_v00-05.pkts
+filepath = science_file.construct_file_path()
+
+# Use a data directory
+science_file = imap_data_access.ScienceFilePath("imap_swe_l0_sci_20240105_20240105_v00-05.pkts", data_dir="/data/personal")
+
+# Filepath = /data/personal/imap/swe/l0/2024/01/imap_swe_l0_sci_20240105_20240105_v00-05.pkts
+filepath = science_file.construct_file_path()
+```
