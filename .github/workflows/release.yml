@@ -51,6 +51,7 @@ jobs:
   pypi-publish:
     name: Upload release to PyPI
     runs-on: ubuntu-latest
+    needs: build_sdist
     environment:
       name: pypi
       url: https://pypi.org/p/imap-data-access
