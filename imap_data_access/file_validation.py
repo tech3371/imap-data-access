@@ -1,3 +1,4 @@
+# ruff: noqa: PLR0913
 """Methods for managing and validating filenames and filepaths"""
 from __future__ import annotations
 
@@ -14,14 +15,15 @@ class ScienceFilePath:
 
         pass
 
-    def __init__(self, filename: str | Path, data_dir: Path | None = None):
+    def __init__(self, filename: str | Path):
         """Class to store filepath and file management methods for science files.
 
         If you have an instance of this class, you can be confident you have a valid
-        science file and generate paths in the correct format.
+        science file and generate paths in the correct format. The parent of the file
+        path is set by the "IMAP_DATA_DIR" environment variable, or defaults to "data/"
 
         Current filename convention:
-        <mission>_<instrument>_<datalevel>_<descriptor>_<startdate>_<enddate>
+        <mission>_<instrument>_<datalevel>_<descriptor>_<start_date>_<end_date>
         _<version>.<extension>
 
         NOTE: There are no optional parameters. All parameters are required.
@@ -41,11 +43,10 @@ class ScienceFilePath:
         ----------
         filename : str | Path
             Science data filename or file path.
-        data_dir : Path, optional
-            Optional higher directory level for the data, by default None
+
         """
         self.filename = Path(filename)
-        self.data_dir = data_dir
+        self.data_dir = imap_data_access.config["DATA_DIR"]
 
         try:
             split_filename = self.extract_filename_components(self.filename)
@@ -57,16 +58,65 @@ class ScienceFilePath:
 
         self.mission = split_filename["mission"]
         self.instrument = split_filename["instrument"]
-        self.data_level = split_filename["datalevel"]
+        self.data_level = split_filename["data_level"]
         self.descriptor = split_filename["descriptor"]
-        self.startdate = split_filename["startdate"]
-        self.enddate = split_filename["enddate"]
+        self.start_date = split_filename["start_date"]
+        self.end_date = split_filename["end_date"]
         self.version = split_filename["version"]
         self.extension = split_filename["extension"]
 
         self.error_message = self.validate_filename()
         if self.error_message:
             raise self.InvalidScienceFileError(f"{self.error_message}")
+
+    @classmethod
+    def generate_from_inputs(
+        cls,
+        instrument: str,
+        data_level: str,
+        descriptor: str,
+        start_time: str,
+        end_time: str,
+        version: str,
+    ):
+        """Generate a filename from given inputs and return a ScienceFilePath instance.
+
+        This can be used instead of the __init__ method to make a new instance:
+        ```
+        science_file_path = ScienceFilePath.generate_from_inputs("mag", "l0", "test",
+            "20240213", "20240213", "v01-01")
+        full_path = science_file_path.construct_path()
+        ```
+
+        Parameters
+        ----------
+        descriptor : str
+            The descriptor for the filename
+        instrument : str
+            The instrument for the filename
+        data_level : str
+            The data level for the filename
+        start_time: str
+            The start time for the filename
+        end_time: str
+            The end time for the filename
+        version : str
+            The version of the data
+
+        Returns
+        -------
+        str
+            The generated filename
+        """
+        extension = "cdf"
+        if data_level == "l0":
+            extension = "pkts"
+
+        filename = (
+            f"imap_{instrument}_{data_level}_{descriptor}_{start_time}_{end_time}_"
+            f"{version}.{extension}"
+        )
+        return cls(filename)
 
     def validate_filename(self) -> str:
         """Validate the filename and populate the error message for wrong attributes.
@@ -89,8 +139,8 @@ class ScienceFilePath:
                 self.instrument,
                 self.data_level,
                 self.descriptor,
-                self.startdate,
-                self.enddate,
+                self.start_date,
+                self.end_date,
                 self.version,
                 self.extension,
             ]
@@ -114,9 +164,9 @@ class ScienceFilePath:
                 f"from "
                 f"{imap_data_access.VALID_DATALEVELS} \n"
             )
-        if not self.is_valid_date(self.startdate):
+        if not self.is_valid_date(self.start_date):
             error_message += "Invalid start date format. Please use YYYYMMDD format. \n"
-        if not self.is_valid_date(self.enddate):
+        if not self.is_valid_date(self.end_date):
             error_message += "Invalid end date format. Please use YYYYMMDD format. \n"
         if not bool(re.match(r"^v\d{2}-\d{2}$", self.version)):
             error_message += "Invalid version format. Please use vxx-xx format. \n"
@@ -171,7 +221,7 @@ class ScienceFilePath:
         """
         upload_path = Path(
             f"{self.mission}/{self.instrument}/{self.data_level}/"
-            f"{self.startdate[:4]}/{self.startdate[4:6]}/{self.filename}"
+            f"{self.start_date[:4]}/{self.start_date[4:6]}/{self.filename}"
         )
         if self.data_dir:
             upload_path = self.data_dir / upload_path
@@ -205,10 +255,10 @@ class ScienceFilePath:
         pattern = (
             r"^(?P<mission>imap)_"
             r"(?P<instrument>[^_]+)_"
-            r"(?P<datalevel>[^_]+)_"
+            r"(?P<data_level>[^_]+)_"
             r"(?P<descriptor>[^_]+)_"
-            r"(?P<startdate>\d{8})_"
-            r"(?P<enddate>\d{8})_"
+            r"(?P<start_date>\d{8})_"
+            r"(?P<end_date>\d{8})_"
             r"(?P<version>v\d{2}-\d{2})"
             r"\.(?P<extension>cdf|pkts)$"
         )
