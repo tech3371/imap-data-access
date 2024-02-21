@@ -1,3 +1,5 @@
+"""Tests for the ``file_validataion`` module."""
+
 from pathlib import Path
 
 import pytest
@@ -7,6 +9,7 @@ from imap_data_access.file_validation import ScienceFilePath
 
 
 def test_extract_filename_components():
+    """Tests the ``extract_filename_components`` function."""
     valid_filename = "imap_mag_l1a_burst_20210101_20210102_v01-01.pkts"
 
     expected_output = {
@@ -47,6 +50,7 @@ def test_extract_filename_components():
 
 
 def test_construct_sciencefilepathmanager():
+    """Tests that the ``ScienceFilePath`` class constructs a valid filename."""
     valid_filename = "imap_mag_l1a_burst_20210101_20210102_v01-01.cdf"
     sfm = ScienceFilePath(valid_filename)
     assert sfm.mission == "imap"
@@ -83,6 +87,7 @@ def test_construct_sciencefilepathmanager():
 
 
 def test_is_valid_date():
+    """Tests the ``is_valid_date`` method."""
     valid_date = "20210101"
     assert ScienceFilePath.is_valid_date(valid_date)
 
@@ -97,6 +102,7 @@ def test_is_valid_date():
 
 
 def test_construct_upload_path():
+    """Tests the ``construct_path`` method."""
     valid_filename = "imap_mag_l1a_burst_20210101_20210102_v01-01.cdf"
     sfm = ScienceFilePath(valid_filename)
     expected_output = imap_data_access.config["DATA_DIR"] / Path(
@@ -107,6 +113,7 @@ def test_construct_upload_path():
 
 
 def test_generate_from_inputs():
+    """Tests the ``generate_from_inputs`` method."""
     sfm = ScienceFilePath.generate_from_inputs(
         "mag", "l1a", "burst", "20210101", "20210102", "v01-01"
     )

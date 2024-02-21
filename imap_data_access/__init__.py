@@ -1,4 +1,4 @@
-"""Data Access for the IMAP Mission
+"""Data Access for the IMAP Mission.
 
 The Interstellar Mapping and Acceleration Probe (IMAP) is a NASA mission to study the
 heliosphere. This package contains the data access tools for the IMAP mission. It

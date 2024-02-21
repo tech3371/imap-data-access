@@ -1,5 +1,6 @@
+"""Methods for managing and validating filenames and filepaths."""
 # ruff: noqa: PLR0913
-"""Methods for managing and validating filenames and filepaths"""
+
 from __future__ import annotations
 
 import re
@@ -10,8 +11,10 @@ import imap_data_access
 
 
 class ScienceFilePath:
+    """Class for building and validating filepaths for science files."""
+
     class InvalidScienceFileError(Exception):
-        """Indicates a bad file type"""
+        """Indicates a bad file type."""
 
         pass
 
@@ -107,6 +110,7 @@ class ScienceFilePath:
         -------
         str
             The generated filename
+
         """
         extension = "cdf"
         if data_level == "l0":
@@ -129,6 +133,7 @@ class ScienceFilePath:
         error_message: str
             Error message for specific missing attribute, or "" if the file name is
             valid.
+
         """
         error_message = ""
 
@@ -184,7 +189,7 @@ class ScienceFilePath:
 
     @staticmethod
     def is_valid_date(input_date: str) -> bool:
-        """Check input date string is in valid format and is correct date
+        """Check input date string is in valid format and is correct date.
 
         Parameters
         ----------
@@ -195,8 +200,8 @@ class ScienceFilePath:
         -------
         bool
             Whether date input is valid or not
-        """
 
+        """
         # Validate if it's a real date
         try:
             # This checks if date is in YYYYMMDD format.
@@ -218,6 +223,7 @@ class ScienceFilePath:
         -------
         Path
             Upload path
+
         """
         upload_path = Path(
             f"{self.mission}/{self.instrument}/{self.data_level}/"
@@ -230,8 +236,7 @@ class ScienceFilePath:
 
     @staticmethod
     def extract_filename_components(filename: str | Path) -> dict:
-        """
-        Extracts all components from filename. Does not validate instrument or level.
+        """Extract all components from filename. Does not validate instrument or level.
 
         Will return a dictionary with the following keys:
         { instrument, datalevel, descriptor, startdate, enddate, version, extension }
