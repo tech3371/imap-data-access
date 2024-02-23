@@ -26,21 +26,19 @@ class ScienceFilePath:
         path is set by the "IMAP_DATA_DIR" environment variable, or defaults to "data/"
 
         Current filename convention:
-        <mission>_<instrument>_<datalevel>_<descriptor>_<start_date>_<end_date>
+        <mission>_<instrument>_<datalevel>_<descriptor>_<start_date>(-<repointing>)
         _<version>.<extension>
 
         NOTE: There are no optional parameters. All parameters are required.
         <mission>: imap
-        <instrument>: idex, swe, swapi, hi-45, ultra-45 and etc.
-        <datalevel> : l1a, l1b, l1, l3a and etc.
+        <instrument>: codice, glows, hi, hit, idex, lo, mag, swapi, swe, ultra
+        <data_level> : l1a, l1b, l1, l3a and etc.
         <descriptor>: descriptor stores information specific to instrument. This is
             decided by each instrument. For L0, "raw" is used.
-        <startdate>: startdate is the earliest date in the data. Format - YYYYMMDD
-        <enddate>: Some instrument and some data level requires to store date range.
-            If there is no end date, then startdate will be used as enddate as well.
-            Format - YYYYMMDD.
-        <version>: This stores software version and data version. Version format is
-            vxx-xx.
+        <start_date>: startdate is the earliest date in the data, format: YYYYMMDD
+        <repointing>: This is an optional field. It is used to indicate which
+            repointing the data is from, format: repointXXXXX
+        <version>: This stores the data version for this product, format: vXXX
 
         Parameters
         ----------
@@ -63,7 +61,7 @@ class ScienceFilePath:
         self.data_level = split_filename["data_level"]
         self.descriptor = split_filename["descriptor"]
         self.start_date = split_filename["start_date"]
-        self.end_date = split_filename["end_date"]
+        self.repointing = split_filename["repointing"]
         self.version = split_filename["version"]
         self.extension = split_filename["extension"]
 
@@ -78,15 +76,15 @@ class ScienceFilePath:
         data_level: str,
         descriptor: str,
         start_time: str,
-        end_time: str,
         version: str,
-    ) -> str:
+        repointing: str | None = None,
+    ) -> ScienceFilePath:
         """Generate a filename from given inputs and return a ScienceFilePath instance.
 
         This can be used instead of the __init__ method to make a new instance:
         ```
         science_file_path = ScienceFilePath.generate_from_inputs("mag", "l0", "test",
-            "20240213", "20240213", "v01-01")
+            "20240213", "v001")
         full_path = science_file_path.construct_path()
         ```
 
@@ -100,10 +98,11 @@ class ScienceFilePath:
             The data level for the filename
         start_time: str
             The start time for the filename
-        end_time: str
-            The end time for the filename
         version : str
             The version of the data
+        repointing : str, optional
+            The repointing number for this file, optional field that
+            is not always present
 
         Returns
         -------
@@ -113,9 +112,11 @@ class ScienceFilePath:
         extension = "cdf"
         if data_level == "l0":
             extension = "pkts"
-
+        time_field = start_time
+        if repointing:
+            time_field += f"-repoint{repointing}"
         filename = (
-            f"imap_{instrument}_{data_level}_{descriptor}_{start_time}_{end_time}_"
+            f"imap_{instrument}_{data_level}_{descriptor}_{time_field}_"
             f"{version}.{extension}"
         )
         return cls(filename)
@@ -142,7 +143,6 @@ class ScienceFilePath:
                 self.data_level,
                 self.descriptor,
                 self.start_date,
-                self.end_date,
                 self.version,
                 self.extension,
             ]
@@ -168,10 +168,8 @@ class ScienceFilePath:
             )
         if not self.is_valid_date(self.start_date):
             error_message += "Invalid start date format. Please use YYYYMMDD format. \n"
-        if not self.is_valid_date(self.end_date):
-            error_message += "Invalid end date format. Please use YYYYMMDD format. \n"
-        if not bool(re.match(r"^v\d{2}-\d{2}$", self.version)):
-            error_message += "Invalid version format. Please use vxx-xx format. \n"
+        if not bool(re.match(r"^v\d{3}$", self.version)):
+            error_message += "Invalid version format. Please use vXXX format. \n"
 
         if self.extension not in imap_data_access.VALID_FILE_EXTENSION or (
             (self.data_level == "l0" and self.extension != "pkts")
@@ -210,7 +208,7 @@ class ScienceFilePath:
     def construct_path(self) -> Path:
         """Construct valid path from class variables and data_dir.
 
-        If data_dir is not none, it is prepended on the returned path.
+        If data_dir is not None, it is prepended on the returned path.
 
         expected return:
         <data_dir>/mission/instrument/data_level/startdate_month/startdate_day/filename
@@ -256,9 +254,9 @@ class ScienceFilePath:
             r"(?P<instrument>[^_]+)_"
             r"(?P<data_level>[^_]+)_"
             r"(?P<descriptor>[^_]+)_"
-            r"(?P<start_date>\d{8})_"
-            r"(?P<end_date>\d{8})_"
-            r"(?P<version>v\d{2}-\d{2})"
+            r"(?P<start_date>\d{8})"
+            r"(-repoint(?P<repointing>\d{5}))?"  # Optional repointing field
+            r"_(?P<version>v\d{3})"
             r"\.(?P<extension>cdf|pkts)$"
         )
         if isinstance(filename, Path):

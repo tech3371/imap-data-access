@@ -73,8 +73,8 @@ def test_request_errors(mock_urlopen: unittest.mock.MagicMock):
     [
         # Directory structure inferred
         (
-            "imap_swe_l1_test-description_20100101_20100102_v00-00.cdf",
-            "imap/swe/l1/2010/01/imap_swe_l1_test-description_20100101_20100102_v00-00.cdf",
+            "imap_swe_l1_test-description_20100101_v000.cdf",
+            "imap/swe/l1/2010/01/imap_swe_l1_test-description_20100101_v000.cdf",
         ),
         # Directory structure provided in the request
         ("imap/test/config/file.txt", "imap/test/config/file.txt"),
@@ -155,7 +155,8 @@ def test_download_already_exists(mock_urlopen: unittest.mock.MagicMock):
             "descriptor": "test-description",
             "start_date": "20100101",
             "end_date": "20100102",
-            "version": "00-00",
+            "repointing": "00001",
+            "version": "000",
             "extension": "pkts",
         },
         # Make sure not all query params are sent if they are missing

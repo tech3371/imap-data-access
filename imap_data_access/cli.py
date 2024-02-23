@@ -49,7 +49,7 @@ def _print_query_results_table(query_results: list[dict]):
     print(f"Found [{num_files}] matching files")
     if num_files == 0:
         return
-    format_string = "{:<10}|{:<10}|{:<10}|{:<10}|{:<8}|{:<7}|{:<50}|"
+    format_string = "{:<10}|{:<10}|{:<10}|{:<10}|{:<10}|{:<7}|{:<50}|"
     # Add hyphens for a separator between header and data
     hyphens = "-" * 111 + "|"
     print(hyphens)
@@ -58,7 +58,7 @@ def _print_query_results_table(query_results: list[dict]):
         "Data Level",
         "Descriptor",
         "Start Date",
-        "End Date",
+        "Repointing",
         "Version",
         "Filename",
     ]
@@ -72,7 +72,7 @@ def _print_query_results_table(query_results: list[dict]):
             item["data_level"],
             item["descriptor"],
             item["start_date"],
-            item["end_date"],
+            item["repointing"],
             item["version"],
             os.path.basename(item["file_path"]),
         ]
@@ -95,7 +95,7 @@ def _query_parser(args: argparse.Namespace):
         "data_level",
         "descriptor",
         "start_date",
-        "end_date",
+        "repointing",
         "version",
         "extension",
     ]
@@ -152,7 +152,7 @@ def main():
     )
     file_path_help = (
         "This must be the full path to the file."
-        "\nE.g. imap/mag/l0/2025/01/imap_mag_l0_raw_20250101_20250101_v00-00.pkts"
+        "\nE.g. imap/mag/l0/2025/01/imap_mag_l0_raw_20250101_v001.pkts"
     )
     query_help = (
         "Query the IMAP SDC for files matching the query parameters. "
@@ -160,7 +160,7 @@ def main():
     )
     upload_help = (
         "Upload a file to the IMAP SDC. This must be the full path to the file."
-        "\nE.g. imap/mag/l0/2025/01/imap_mag_l0_raw_20250101_20250101_v00-00.pkts"
+        "\nE.g. imap/mag/l0/2025/01/imap_mag_l0_raw_20250101_v001.pkts"
     )
     url_help = (
         "URL of the IMAP SDC API. "
@@ -243,13 +243,16 @@ def main():
         "--end-date", type=str, required=False, help="End date in YYYYMMDD format"
     )
     query_parser.add_argument(
+        "--repointing", type=int, required=False, help="Repointing number (int)"
+    )
+    query_parser.add_argument(
         "--version",
         type=str,
         required=False,
-        help="Version of the product in the format 'v00-00'",
+        help="Version of the product in the format 'v001'",
     )
     query_parser.add_argument(
-        "--extension", type=str, required=False, help="File extension (cdf, pkts, etc.)"
+        "--extension", type=str, required=False, help="File extension (cdf, pkts)"
     )
     query_parser.add_argument(
         "--output-format",
