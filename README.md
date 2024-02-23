@@ -4,6 +4,12 @@ This lightweight  Python package allows users to download, query, and upload dat
 
 ## Command Line Utility
 
+### To install
+```bash
+pip install imap-data-access
+imap-data-access -h
+```
+
 ### Query / Search for data
 
 Find all files from the SWE instrument
