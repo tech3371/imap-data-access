@@ -1,5 +1,6 @@
+"""Methods for managing and validating filenames and filepaths."""
 # ruff: noqa: PLR0913
-"""Methods for managing and validating filenames and filepaths"""
+
 from __future__ import annotations
 
 import re
@@ -10,8 +11,10 @@ import imap_data_access
 
 
 class ScienceFilePath:
+    """Class for building and validating filepaths for science files."""
+
     class InvalidScienceFileError(Exception):
-        """Indicates a bad file type"""
+        """Indicates a bad file type."""
 
         pass
 
@@ -43,7 +46,6 @@ class ScienceFilePath:
         ----------
         filename : str | Path
             Science data filename or file path.
-
         """
         self.filename = Path(filename)
         self.data_dir = imap_data_access.config["DATA_DIR"]
@@ -184,7 +186,7 @@ class ScienceFilePath:
 
     @staticmethod
     def is_valid_date(input_date: str) -> bool:
-        """Check input date string is in valid format and is correct date
+        """Check input date string is in valid format and is correct date.
 
         Parameters
         ----------
@@ -196,7 +198,6 @@ class ScienceFilePath:
         bool
             Whether date input is valid or not
         """
-
         # Validate if it's a real date
         try:
             # This checks if date is in YYYYMMDD format.
@@ -230,8 +231,7 @@ class ScienceFilePath:
 
     @staticmethod
     def extract_filename_components(filename: str | Path) -> dict:
-        """
-        Extracts all components from filename. Does not validate instrument or level.
+        """Extract all components from filename. Does not validate instrument or level.
 
         Will return a dictionary with the following keys:
         { instrument, datalevel, descriptor, startdate, enddate, version, extension }
@@ -250,7 +250,6 @@ class ScienceFilePath:
         -------
         components : dict
             Dictionary containing components.
-
         """
         pattern = (
             r"^(?P<mission>imap)_"
