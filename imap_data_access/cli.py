@@ -29,7 +29,6 @@ def _download_parser(args: argparse.Namespace):
     ----------
     args : argparse.Namespace
         An object containing the parsed arguments and their values
-
     """
     try:
         output_path = imap_data_access.download(args.file_path)
@@ -45,7 +44,6 @@ def _print_query_results_table(query_results):
     ----------
     query_results : list
         A list of dictionaries containing the query results
-
     """
     num_files = len(query_results)
     print(f"Found [{num_files}] matching files")
@@ -90,7 +88,6 @@ def _query_parser(args: argparse.Namespace):
     ----------
     args : argparse.Namespace
         An object containing the parsed arguments and their values
-
     """
     # Filter to get the arguments of interest from the namespace
     valid_args = [
@@ -127,7 +124,6 @@ def _upload_parser(args: argparse.Namespace):
     ----------
     args : argparse.Namespace
         An object containing the parsed arguments and their values
-
     """
     try:
         imap_data_access.upload(args.file_path)
@@ -140,7 +136,6 @@ def main():
     """Parse the command line arguments.
 
     Run the command line interface to the IMAP Data Access API.
-
     """
     data_dir_help = (
         "Directory to use for reading and writing IMAP data. "

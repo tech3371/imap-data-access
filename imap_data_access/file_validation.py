@@ -46,7 +46,6 @@ class ScienceFilePath:
         ----------
         filename : str | Path
             Science data filename or file path.
-
         """
         self.filename = Path(filename)
         self.data_dir = imap_data_access.config["DATA_DIR"]
@@ -110,7 +109,6 @@ class ScienceFilePath:
         -------
         str
             The generated filename
-
         """
         extension = "cdf"
         if data_level == "l0":
@@ -133,7 +131,6 @@ class ScienceFilePath:
         error_message: str
             Error message for specific missing attribute, or "" if the file name is
             valid.
-
         """
         error_message = ""
 
@@ -200,7 +197,6 @@ class ScienceFilePath:
         -------
         bool
             Whether date input is valid or not
-
         """
         # Validate if it's a real date
         try:
@@ -223,7 +219,6 @@ class ScienceFilePath:
         -------
         Path
             Upload path
-
         """
         upload_path = Path(
             f"{self.mission}/{self.instrument}/{self.data_level}/"
@@ -255,7 +250,6 @@ class ScienceFilePath:
         -------
         components : dict
             Dictionary containing components.
-
         """
         pattern = (
             r"^(?P<mission>imap)_"

@@ -22,7 +22,6 @@ def mock_urlopen():
     ------
     mock_urlopen : unittest.mock.MagicMock
         Mock object for ``urlopen``
-
     """
     mock_data = b"Mock file content"
     with patch("urllib.request.urlopen") as mock_urlopen:
@@ -40,7 +39,6 @@ def _set_mock_data(mock_urlopen, data):
         Mock object for ``urlopen``
     data : bytes
         The mock data
-
     """
     mock_response = mock_urlopen.return_value.__enter__.return_value
     mock_response.read.return_value = data
@@ -53,7 +51,6 @@ def test_request_errors(mock_urlopen):
     ----------
     mock_urlopen : unittest.mock.MagicMock
         Mock object for ``urlopen``
-
     """
     # Set up the mock to raise an HTTPError
     mock_urlopen.side_effect = HTTPError(
@@ -93,7 +90,6 @@ def test_download(mock_urlopen, file_path, destination):
         The path to the file to download
     destination : str
         The path to which the file is expected to be downloaded
-
     """
     # Call the download function
     result = imap_data_access.download(file_path)
@@ -130,7 +126,6 @@ def test_download_already_exists(mock_urlopen):
     ----------
     mock_urlopen : unittest.mock.MagicMock
         Mock object for ``urlopen``
-
     """
     # Call the download function
     file_path = "a/b.txt"
@@ -171,7 +166,6 @@ def test_query(mock_urlopen, query_params):
         Mock object for ``urlopen``
     query_params : list of dict
         A list of key/value pairs that set the query parameters
-
     """
     _set_mock_data(mock_urlopen, json.dumps([]).encode("utf-8"))
     response = imap_data_access.query(**query_params)
@@ -194,7 +188,6 @@ def test_query_no_params(mock_urlopen):
     ----------
     mock_urlopen : unittest.mock.MagicMock
         Mock object for ``urlopen``
-
     """
     with pytest.raises(ValueError, match="At least one query"):
         imap_data_access.query()
@@ -209,7 +202,6 @@ def test_query_bad_params(mock_urlopen):
     ----------
     mock_urlopen : unittest.mock.MagicMock
         Mock object for ``urlopen``
-
     """
     with pytest.raises(TypeError, match="got an unexpected"):
         imap_data_access.query(bad_param="test")
@@ -224,7 +216,6 @@ def test_upload_no_file(mock_urlopen):
     ----------
     mock_urlopen : unittest.mock.MagicMock
         Mock object for ``urlopen``
-
     """
     path = Path("/non-existant/file.txt")
     assert not path.exists()
@@ -243,7 +234,6 @@ def test_upload_not_relative_to_base(monkeypatch, mock_urlopen):
         Used to set the ``DATA_DIR`` during tests
     mock_urlopen : unittest.mock.MagicMock
         Mock object for ``urlopen``
-
     """
     # Change the base directory to something else temporarily
     monkeypatch.setitem(imap_data_access.config, "DATA_DIR", Path.cwd() / "/a/b/c")
@@ -264,7 +254,6 @@ def test_upload(mock_urlopen, upload_file_path):
         Mock object for ``urlopen``
     upload_file_path : str
         The upload file path to test with
-
     """
     _set_mock_data(mock_urlopen, b'"https://s3-test-bucket.com"')
     # Call the upload function

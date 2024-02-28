@@ -58,7 +58,6 @@ def download(file_path: Union[Path, str]) -> Path:
     -------
     pathlib.Path
         Path to the downloaded file
-
     """
     destination = imap_data_access.config["DATA_DIR"]
     if isinstance(file_path, str) and "/" not in file_path:
@@ -134,7 +133,6 @@ def query(
     -------
     list
         List of files matching the query
-
     """
     # locals() gives us the keyword arguments passed to the function
     # and allows us to filter out the None values
@@ -164,7 +162,6 @@ def upload(file_path: Union[Path, str]) -> None:
     file_path : pathlib.Path or str
         Path to the file to upload. It must be located within
         the ``imap_data_access.config["DATA_DIR"]`` directory.
-
     """
     file_path = Path(file_path).resolve()
     if not file_path.exists():
