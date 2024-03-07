@@ -1,5 +1,7 @@
 """Tests for the ``io`` module."""
 
+from __future__ import annotations
+
 import json
 import os
 import unittest
