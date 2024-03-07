@@ -81,7 +81,7 @@ def test_request_errors(mock_urlopen: unittest.mock.MagicMock):
     ],
 )
 def test_download(
-    mock_urlopen: unittest.mock.MagicMock, file_path: str, destination: str
+    mock_urlopen: unittest.mock.MagicMock, file_path: str | Path, destination: str
 ):
     """Test that the download API works as expected.
 
@@ -89,7 +89,7 @@ def test_download(
     ----------
     mock_urlopen : unittest.mock.MagicMock
         Mock object for ``urlopen``
-    file_path : str
+    file_path : str or Path
         The path to the file to download
     destination : str
         The path to which the file is expected to be downloaded
@@ -250,14 +250,14 @@ def test_upload_not_relative_to_base(
 @pytest.mark.parametrize(
     "upload_file_path", ["a/b/test-file.txt", Path("a/b/test-file.txt")]
 )
-def test_upload(mock_urlopen: unittest.mock.MagicMock, upload_file_path: str):
+def test_upload(mock_urlopen: unittest.mock.MagicMock, upload_file_path: str | Path):
     """Test a basic call to the upload API.
 
     Parameters
     ----------
     mock_urlopen : unittest.mock.MagicMock
         Mock object for ``urlopen``
-    upload_file_path : str
+    upload_file_path : str or Path
         The upload file path to test with
     """
     _set_mock_data(mock_urlopen, b'"https://s3-test-bucket.com"')
