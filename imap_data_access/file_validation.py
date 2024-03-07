@@ -80,7 +80,7 @@ class ScienceFilePath:
         start_time: str,
         end_time: str,
         version: str,
-    ):
+    ) -> str:
         """Generate a filename from given inputs and return a ScienceFilePath instance.
 
         This can be used instead of the __init__ method to make a new instance:

@@ -1,7 +1,10 @@
 """Tests for the ``io`` module."""
 
+from __future__ import annotations
+
 import json
 import os
+import unittest
 from io import BytesIO
 from pathlib import Path
 from unittest.mock import patch
@@ -30,7 +33,7 @@ def mock_urlopen():
         yield mock_urlopen
 
 
-def _set_mock_data(mock_urlopen, data):
+def _set_mock_data(mock_urlopen: unittest.mock.MagicMock, data: bytes):
     """Set the data returned by the mock urlopen.
 
     Parameters
@@ -44,7 +47,7 @@ def _set_mock_data(mock_urlopen, data):
     mock_response.read.return_value = data
 
 
-def test_request_errors(mock_urlopen):
+def test_request_errors(mock_urlopen: unittest.mock.MagicMock):
     """Test that invalid URLs raise an appropriate HTTPError or URLError.
 
     Parameters
@@ -79,14 +82,16 @@ def test_request_errors(mock_urlopen):
         (Path("imap/test/config/file.txt"), "imap/test/config/file.txt"),
     ],
 )
-def test_download(mock_urlopen, file_path, destination):
+def test_download(
+    mock_urlopen: unittest.mock.MagicMock, file_path: str | Path, destination: str
+):
     """Test that the download API works as expected.
 
     Parameters
     ----------
     mock_urlopen : unittest.mock.MagicMock
         Mock object for ``urlopen``
-    file_path : str
+    file_path : str or Path
         The path to the file to download
     destination : str
         The path to which the file is expected to be downloaded
@@ -119,7 +124,7 @@ def test_download(mock_urlopen, file_path, destination):
     assert request_sent.method == "GET"
 
 
-def test_download_already_exists(mock_urlopen):
+def test_download_already_exists(mock_urlopen: unittest.mock.MagicMock):
     """Test that downloading a file that already exists does result in any requests.
 
     Parameters
@@ -157,7 +162,7 @@ def test_download_already_exists(mock_urlopen):
         {"instrument": "swe", "data_level": "l0"},
     ],
 )
-def test_query(mock_urlopen, query_params):
+def test_query(mock_urlopen: unittest.mock.MagicMock, query_params: list[dict]):
     """Test a basic call to the Query API.
 
     Parameters
@@ -181,7 +186,7 @@ def test_query(mock_urlopen, query_params):
     assert called_url == expected_url_encoded
 
 
-def test_query_no_params(mock_urlopen):
+def test_query_no_params(mock_urlopen: unittest.mock.MagicMock):
     """Test a call to the Query API that has no parameters.
 
     Parameters
@@ -195,7 +200,7 @@ def test_query_no_params(mock_urlopen):
     assert mock_urlopen.call_count == 0
 
 
-def test_query_bad_params(mock_urlopen):
+def test_query_bad_params(mock_urlopen: unittest.mock.MagicMock):
     """Test a call to the Query API that has invalid parameters.
 
     Parameters
@@ -209,7 +214,7 @@ def test_query_bad_params(mock_urlopen):
     assert mock_urlopen.call_count == 0
 
 
-def test_upload_no_file(mock_urlopen):
+def test_upload_no_file(mock_urlopen: unittest.mock.MagicMock):
     """Test a call to the upload API that has no filename supplied.
 
     Parameters
@@ -225,7 +230,9 @@ def test_upload_no_file(mock_urlopen):
     assert mock_urlopen.call_count == 0
 
 
-def test_upload_not_relative_to_base(monkeypatch, mock_urlopen):
+def test_upload_not_relative_to_base(
+    monkeypatch: pytest.fixture, mock_urlopen: unittest.mock.MagicMock
+):
     """Test a call to the upload API for a file stored in a bad location.
 
     Parameters
@@ -245,14 +252,14 @@ def test_upload_not_relative_to_base(monkeypatch, mock_urlopen):
 @pytest.mark.parametrize(
     "upload_file_path", ["a/b/test-file.txt", Path("a/b/test-file.txt")]
 )
-def test_upload(mock_urlopen, upload_file_path):
+def test_upload(mock_urlopen: unittest.mock.MagicMock, upload_file_path: str | Path):
     """Test a basic call to the upload API.
 
     Parameters
     ----------
     mock_urlopen : unittest.mock.MagicMock
         Mock object for ``urlopen``
-    upload_file_path : str
+    upload_file_path : str or Path
         The upload file path to test with
     """
     _set_mock_data(mock_urlopen, b'"https://s3-test-bucket.com"')

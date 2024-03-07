@@ -37,7 +37,7 @@ def _download_parser(args: argparse.Namespace):
         print(e)
 
 
-def _print_query_results_table(query_results):
+def _print_query_results_table(query_results: list[dict]):
     """Print the query results in a table.
 
     Parameters

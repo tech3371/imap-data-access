@@ -104,7 +104,7 @@ def query(
     end_date: Optional[str] = None,
     version: Optional[str] = None,
     extension: Optional[str] = None,
-):
+) -> list[str]:
     """Query the data archive for files matching the parameters.
 
     Parameters
