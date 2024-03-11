@@ -77,7 +77,7 @@ class ScienceFilePath:
         descriptor: str,
         start_time: str,
         version: str,
-        repointing: str | None = None,
+        repointing: int | None = None,
     ) -> ScienceFilePath:
         """Generate a filename from given inputs and return a ScienceFilePath instance.
 
@@ -100,7 +100,7 @@ class ScienceFilePath:
             The start time for the filename
         version : str
             The version of the data
-        repointing : str, optional
+        repointing : int, optional
             The repointing number for this file, optional field that
             is not always present
 
@@ -114,7 +114,7 @@ class ScienceFilePath:
             extension = "pkts"
         time_field = start_time
         if repointing:
-            time_field += f"-repoint{repointing}"
+            time_field += f"-repoint{repointing:05d}"
         filename = (
             f"imap_{instrument}_{data_level}_{descriptor}_{time_field}_"
             f"{version}.{extension}"
@@ -170,6 +170,8 @@ class ScienceFilePath:
             error_message += "Invalid start date format. Please use YYYYMMDD format. \n"
         if not bool(re.match(r"^v\d{3}$", self.version)):
             error_message += "Invalid version format. Please use vXXX format. \n"
+        if self.repointing and not isinstance(self.repointing, int):
+            error_message += "The repointing number should be an integer.\n"
 
         if self.extension not in imap_data_access.VALID_FILE_EXTENSION or (
             (self.data_level == "l0" and self.extension != "pkts")
@@ -270,4 +272,7 @@ class ScienceFilePath:
             )
 
         components = match.groupdict()
+        if components["repointing"]:
+            # We want the repointing number as an integer
+            components["repointing"] = int(components["repointing"])
         return components

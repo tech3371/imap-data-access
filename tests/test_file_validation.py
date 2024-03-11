@@ -30,7 +30,7 @@ def test_extract_filename_components():
     valid_filename = "imap_mag_l1a_burst_20210101-repoint00001_v001.pkts"
     assert ScienceFilePath.extract_filename_components(
         valid_filename
-    ) == expected_output | {"repointing": "00001"}
+    ) == expected_output | {"repointing": 1}
 
     # Add a multi-part hyphen description
     valid_filename = "imap_mag_l1a_burst-1min_20210101_v001.pkts"
@@ -163,7 +163,7 @@ def test_generate_from_inputs():
         "raw",
         "20210101",
         "v001",
-        repointing="00001",
+        repointing=1,
     )
     expected_output = imap_data_access.config["DATA_DIR"] / Path(
         "imap/mag/l0/2021/01/imap_mag_l0_raw_20210101-repoint00001_v001.pkts"

@@ -102,7 +102,7 @@ def query(
     descriptor: Optional[str] = None,
     start_date: Optional[str] = None,
     end_date: Optional[str] = None,
-    repointing: Optional[str] = None,
+    repointing: Optional[int] = None,
     version: Optional[str] = None,
     extension: Optional[str] = None,
 ) -> list[str]:
@@ -122,8 +122,8 @@ def query(
     end_date : str, optional
         End date in YYYYMMDD format. Note this is to search for all files
         with start dates before the requested end_date.
-    repointing : str, optional
-        Repointing number in the format XXXXX
+    repointing : int, optional
+        Repointing number
     version : str, optional
         Data version in the format ``vXXX``
     extension : str, optional
