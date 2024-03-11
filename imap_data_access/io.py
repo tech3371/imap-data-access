@@ -102,6 +102,7 @@ def query(
     descriptor: Optional[str] = None,
     start_date: Optional[str] = None,
     end_date: Optional[str] = None,
+    repointing: Optional[int] = None,
     version: Optional[str] = None,
     extension: Optional[str] = None,
 ) -> list[str]:
@@ -120,12 +121,11 @@ def query(
         with start dates on or after this value.
     end_date : str, optional
         End date in YYYYMMDD format. Note this is to search for all files
-        with start dates before the enddate, not the enddate of the file.
-        For example, if a file spans three months 20100101 to 20100330,
-        and the enddate query was 20100201, the file would still be returned
-        because the startdate is within the query range.
+        with start dates before the requested end_date.
+    repointing : int, optional
+        Repointing number
     version : str, optional
-        Data version in the format ``vXX-YY``
+        Data version in the format ``vXXX``
     extension : str, optional
         File extension (``cdf``, ``pkts``)
 

@@ -42,15 +42,13 @@ VALID_INSTRUMENTS = {
     "codice",
     "glows",
     "hit",
-    "hi-45",
-    "hi-90",
+    "hi",
     "idex",
     "lo",
     "mag",
     "swapi",
     "swe",
-    "ultra-45",
-    "ultra-90",
+    "ultra",
 }
 
 VALID_DATALEVELS = {
@@ -60,7 +58,8 @@ VALID_DATALEVELS = {
     "l1b",
     "l1c",
     "l1ca",
-    "l1cb" "l1d",
+    "l1cb",
+    "l1d",
     "l2",
     "l2pre",
     "l3",
@@ -74,5 +73,5 @@ VALID_FILE_EXTENSION = {"pkts", "cdf"}
 
 FILENAME_CONVENTION = (
     "<mission>_<instrument>_<datalevel>_<descriptor>_"
-    "<startdate>_<enddate>_<version>.<extension>"
+    "<startdate>(-<repointing>)_<version>.<extension>"
 )
