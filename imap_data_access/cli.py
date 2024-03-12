@@ -72,7 +72,8 @@ def _print_query_results_table(query_results: list[dict]):
             item["data_level"],
             item["descriptor"],
             item["start_date"],
-            item["repointing"],
+            # Repointing is optional, so use an empty string if not present
+            item["repointing"] or "",
             item["version"],
             os.path.basename(item["file_path"]),
         ]
