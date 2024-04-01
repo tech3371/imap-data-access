@@ -14,6 +14,7 @@ Use
     imap-data-access query <query-parameters>
     imap-data-access upload <file_path>
 """
+
 import argparse
 import logging
 import os
