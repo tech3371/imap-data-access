@@ -16,6 +16,9 @@ import pytest
 
 import imap_data_access
 
+test_science_filename = "imap_swe_l1_test-description_20100101_v000.cdf"
+test_science_path = "imap/swe/l1/2010/01/" + test_science_filename
+
 
 @pytest.fixture()
 def mock_urlopen():
@@ -60,12 +63,12 @@ def test_request_errors(mock_urlopen: unittest.mock.MagicMock):
         url="http://example.com", code=404, msg="Not Found", hdrs={}, fp=BytesIO()
     )
     with pytest.raises(imap_data_access.io.IMAPDataAccessError, match="HTTP Error"):
-        imap_data_access.download("test/test.txt")
+        imap_data_access.download(test_science_path)
 
     # Set up the mock to raise a URLError
     mock_urlopen.side_effect = URLError(reason="Not Found")
     with pytest.raises(imap_data_access.io.IMAPDataAccessError, match="URL Error"):
-        imap_data_access.download("test/test.txt")
+        imap_data_access.download(test_science_path)
 
 
 @pytest.mark.parametrize(
@@ -73,13 +76,15 @@ def test_request_errors(mock_urlopen: unittest.mock.MagicMock):
     [
         # Directory structure inferred
         (
-            "imap_swe_l1_test-description_20100101_v000.cdf",
-            "imap/swe/l1/2010/01/imap_swe_l1_test-description_20100101_v000.cdf",
+            test_science_filename,
+            test_science_path,
         ),
         # Directory structure provided in the request
-        ("imap/test/config/file.txt", "imap/test/config/file.txt"),
+        (test_science_path, test_science_path),
         # Pathlib.Path object
-        (Path("imap/test/config/file.txt"), "imap/test/config/file.txt"),
+        (Path(test_science_path), test_science_path),
+        # SPICE file
+        ("test.bc", "imap/spice/ck/test.bc"),
     ],
 )
 def test_download(
@@ -119,7 +124,7 @@ def test_download(
     request_sent = urlopen_calls[0].args[0]
     called_url = request_sent.full_url
     # url should be provided as path parameters
-    expected_url_encoded = f"https://api.test.com/download/{file_path}"
+    expected_url_encoded = f"https://api.test.com/download/{destination}"
     assert called_url == expected_url_encoded
     assert request_sent.method == "GET"
 
@@ -133,13 +138,11 @@ def test_download_already_exists(mock_urlopen: unittest.mock.MagicMock):
         Mock object for ``urlopen``
     """
     # Call the download function
-    file_path = "a/b.txt"
     # set up the destination and create a file
-    destination = Path(imap_data_access.config["DATA_DIR"])
-    destination /= f"{file_path}"
+    destination = imap_data_access.config["DATA_DIR"] / test_science_path
     destination.parent.mkdir(parents=True, exist_ok=True)
     destination.touch(exist_ok=True)
-    result = imap_data_access.download(file_path)
+    result = imap_data_access.download(test_science_path)
     assert result == destination
     # Make sure we didn't make any requests
     assert mock_urlopen.call_count == 0

@@ -276,3 +276,61 @@ class ScienceFilePath:
             # We want the repointing number as an integer
             components["repointing"] = int(components["repointing"])
         return components
+
+
+class SPICEFilePath:
+    """Class for building and validating filepaths for SPICE files."""
+
+    class InvalidSPICEFileError(Exception):
+        """Indicates a bad file type."""
+
+        pass
+
+    def __init__(self, filename: str | Path):
+        """Class to store filepath and file management methods for SPICE files.
+
+        If you have an instance of this class, you can be confident you have a valid
+        SPICE file and generate paths in the correct format. The parent of the file
+        path is set by the "IMAP_DATA_DIR" environment variable, or defaults to "data/"
+
+        IMAP_DATA_DIR/spice/<subdir>/filename"
+
+        Parameters
+        ----------
+        filename : str | Path
+            SPICE data filename or file path.
+        """
+        self.filename = Path(filename)
+        self.spice_dir = imap_data_access.config["DATA_DIR"] / "imap/spice"
+
+        if self.filename.suffix[1:] not in imap_data_access.VALID_SPICE_EXTENSIONS:
+            raise self.InvalidSPICEFileError(
+                f"Invalid SPICE file. Expected file to have one of the following "
+                f"extensions {imap_data_access.VALID_SPICE_EXTENSIONS}"
+            )
+
+    def construct_path(self) -> Path:
+        """Construct valid path from the class variables and data_dir.
+
+        expected return:
+        <data_dir>/imap/spice/<subdir>/filename
+
+        Returns
+        -------
+        Path
+            Upload path
+        """
+        # Transform the suffix to the proper directory structure we are expecting
+        suffix_mapping = {
+            ".bc": "ck",
+            ".tf": "fk",
+            ".tls": "lsk",
+            ".tm": "mk",
+            ".tpc": "pck",
+            ".tsc": "sclk",
+            ".bsp": "spk",
+        }
+        subdir = suffix_mapping[self.filename.suffix]
+        # Use the file suffix to determine the directory structure
+        # IMAP_DATA_DIR/spice/<subdir>/filename
+        return self.spice_dir / subdir / self.filename

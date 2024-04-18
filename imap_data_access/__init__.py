@@ -8,7 +8,7 @@ provides a convenient way to query the IMAP data archive and download data files
 import os
 from pathlib import Path
 
-from imap_data_access.file_validation import ScienceFilePath
+from imap_data_access.file_validation import ScienceFilePath, SPICEFilePath
 from imap_data_access.io import download, query, upload
 
 __all__ = [
@@ -16,6 +16,7 @@ __all__ = [
     "download",
     "upload",
     "ScienceFilePath",
+    "SPICEFilePath",
     "VALID_INSTRUMENTS",
     "VALID_DATALEVELS",
     "VALID_FILE_EXTENSION",
@@ -76,3 +77,32 @@ FILENAME_CONVENTION = (
     "<mission>_<instrument>_<datalevel>_<descriptor>_"
     "<startdate>(-<repointing>)_<version>.<extension>"
 )
+
+VALID_SPICE_EXTENSIONS = {
+    "bc",
+    "bds",
+    "bes",
+    "bpc",
+    "bsp",
+    "tf",
+    "ti",
+    "tls",
+    "tm",
+    "tpc",
+    "tsc",
+}
+"""These are the valid extensions for SPICE files according to NAIF
+https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/req/kernel.html
+
+.bc    binary CK
+.bds   binary DSK
+.bes   binary Sequence Component EK
+.bpc   binary PCK
+.bsp   binary SPK
+.tf    text FK
+.ti    text IK
+.tls   text LSK
+.tm    text meta-kernel (FURNSH kernel)
+.tpc   text PCK
+.tsc   text SCLK
+"""

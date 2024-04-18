@@ -5,7 +5,7 @@ from pathlib import Path
 import pytest
 
 import imap_data_access
-from imap_data_access.file_validation import ScienceFilePath
+from imap_data_access.file_validation import ScienceFilePath, SPICEFilePath
 
 
 def test_extract_filename_components():
@@ -169,3 +169,15 @@ def test_generate_from_inputs():
         "imap/mag/l0/2021/01/imap_mag_l0_raw_20210101-repoint00001_v001.pkts"
     )
     assert sfm.construct_path() == expected_output
+
+
+def test_spice_file_path():
+    """Tests the ``SPICEFilePath`` class."""
+    file_path = SPICEFilePath("test.bc")
+    assert file_path.construct_path() == imap_data_access.config["DATA_DIR"] / Path(
+        "imap/spice/ck/test.bc"
+    )
+
+    # Test a bad file extension too
+    with pytest.raises(SPICEFilePath.InvalidSPICEFileError):
+        SPICEFilePath("test.txt")
