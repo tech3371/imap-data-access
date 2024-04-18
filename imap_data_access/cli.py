@@ -291,7 +291,10 @@ def main():
 
     # Now process through the respective function for the invoked command
     # (set with set_defaults on the subparsers above)
-    args.func(args)
+    try:
+        args.func(args)
+    except Exception as e:
+        parser.error(e)
 
 
 if __name__ == "__main__":
