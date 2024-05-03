@@ -139,6 +139,11 @@ def main():
 
     Run the command line interface to the IMAP Data Access API.
     """
+    api_key_help = (
+        "API key to authenticate with the IMAP SDC. "
+        "This can also be set using the IMAP_API_KEY environment variable. "
+        "It is only necessary for uploading files."
+    )
     data_dir_help = (
         "Directory to use for reading and writing IMAP data. "
         "The default is a 'data/' folder in the "
@@ -176,6 +181,7 @@ def main():
         action="version",
         version=f"%(prog)s {imap_data_access.__version__}",
     )
+    parser.add_argument("--api-key", type=str, required=False, help=api_key_help)
     parser.add_argument("--data-dir", type=Path, required=False, help=data_dir_help)
     parser.add_argument("--url", type=str, required=False, help=url_help)
     # Logging level
@@ -288,6 +294,10 @@ def main():
     if args.url:
         # We got an explicit url from the command line
         imap_data_access.config["DATA_ACCESS_URL"] = args.url
+
+    if args.api_key:
+        # We got an explicit api key from the command line
+        imap_data_access.config["API_KEY"] = args.api_key
 
     # Now process through the respective function for the invoked command
     # (set with set_defaults on the subparsers above)

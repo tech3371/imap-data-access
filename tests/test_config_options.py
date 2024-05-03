@@ -62,3 +62,31 @@ def test_url():
         text=True,
     )
     assert proc.stdout.strip() == "https://test.url"
+
+
+def test_api_key():
+    """Test that the api-key is set correctly."""
+    command = [
+        sys.executable,
+        "-c",
+        "import imap_data_access; print(imap_data_access.config['API_KEY'])",
+    ]
+    # Default import should be None
+    proc = subprocess.run(
+        command,
+        capture_output=True,
+        check=True,
+        text=True,
+    )
+    expected = "None"
+    assert proc.stdout.strip() == expected
+
+    # Setting the environment variable should change the url
+    proc = subprocess.run(
+        command,
+        env={**os.environ, "IMAP_API_KEY": "test-api-key"},
+        capture_output=True,
+        check=True,
+        text=True,
+    )
+    assert proc.stdout.strip() == "test-api-key"

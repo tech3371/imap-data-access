@@ -294,6 +294,8 @@ def test_upload(mock_urlopen: unittest.mock.MagicMock, upload_file_path: str | P
     expected_url_encoded = "https://api.test.com/upload/a/b/test-file.txt"
     assert called_url == expected_url_encoded
     assert request_sent.method == "GET"
+    # An API key needs to be added to the header for uploads
+    assert request_sent.headers == {"X-api-key": "test-api-key"}
 
     # Verify that we put that response into our second request
     urlopen_call = mock_calls[1]

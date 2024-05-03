@@ -155,7 +155,7 @@ def query(
     return items
 
 
-def upload(file_path: Union[Path, str]) -> None:
+def upload(file_path: Union[Path, str], *, api_key: Optional[str] = None) -> None:
     """Upload a file to the data archive.
 
     Parameters
@@ -163,6 +163,9 @@ def upload(file_path: Union[Path, str]) -> None:
     file_path : pathlib.Path or str
         Path to the file to upload. It must be located within
         the ``imap_data_access.config["DATA_DIR"]`` directory.
+    api_key : str, optional
+        API key to authenticate with the data access API. If not provided,
+        the value from the IMAP_API_KEY environment variable will be used.
     """
     file_path = Path(file_path).resolve()
     if not file_path.exists():
@@ -185,10 +188,12 @@ def upload(file_path: Union[Path, str]) -> None:
     url += f"/upload/{upload_name}"
     logger.info("Uploading file %s to %s", file_path, url)
 
+    # Create a request header with the API key
+    api_key = api_key or imap_data_access.config["API_KEY"]
     # We send a GET request with the filename and the server
     # will respond with an s3 presigned URL that we can use
     # to upload the file to the data archive
-    request = urllib.request.Request(url, method="GET")
+    request = urllib.request.Request(url, method="GET", headers={"X-api-key": api_key})
 
     with _get_url_response(request) as response:
         # Retrieve the key for the upload
