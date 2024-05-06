@@ -278,6 +278,38 @@ class ScienceFilePath:
         return components
 
 
+# Transform the suffix to the directory structure we are using
+# Commented out mappings are not being used on IMAP
+_SPICE_DIR_MAPPING = {
+    ".bc": "ck",
+    # ".bds": "dsk",
+    # ".bes": "ek",
+    ".bpc": "pck",
+    ".bsp": "spk",
+    ".tf": "fk",
+    # "ti": "ik",
+    ".tls": "lsk",
+    ".tm": "mk",
+    ".tpc": "pck",
+    ".tsc": "sclk",
+}
+"""These are the valid extensions for SPICE files according to NAIF
+https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/req/kernel.html
+
+.bc    binary CK
+.bds   binary DSK
+.bes   binary Sequence Component EK
+.bpc   binary PCK
+.bsp   binary SPK
+.tf    text FK
+.ti    text IK
+.tls   text LSK
+.tm    text meta-kernel (FURNSH kernel)
+.tpc   text PCK
+.tsc   text SCLK
+"""
+
+
 class SPICEFilePath:
     """Class for building and validating filepaths for SPICE files."""
 
@@ -301,12 +333,11 @@ class SPICEFilePath:
             SPICE data filename or file path.
         """
         self.filename = Path(filename)
-        self.spice_dir = imap_data_access.config["DATA_DIR"] / "imap/spice"
 
-        if self.filename.suffix[1:] not in imap_data_access.VALID_SPICE_EXTENSIONS:
+        if self.filename.suffix not in _SPICE_DIR_MAPPING:
             raise self.InvalidSPICEFileError(
                 f"Invalid SPICE file. Expected file to have one of the following "
-                f"extensions {imap_data_access.VALID_SPICE_EXTENSIONS}"
+                f"extensions {list(_SPICE_DIR_MAPPING.keys())}"
             )
 
     def construct_path(self) -> Path:
@@ -320,17 +351,8 @@ class SPICEFilePath:
         Path
             Upload path
         """
-        # Transform the suffix to the proper directory structure we are expecting
-        suffix_mapping = {
-            ".bc": "ck",
-            ".tf": "fk",
-            ".tls": "lsk",
-            ".tm": "mk",
-            ".tpc": "pck",
-            ".tsc": "sclk",
-            ".bsp": "spk",
-        }
-        subdir = suffix_mapping[self.filename.suffix]
+        spice_dir = imap_data_access.config["DATA_DIR"] / "imap/spice"
+        subdir = _SPICE_DIR_MAPPING[self.filename.suffix]
         # Use the file suffix to determine the directory structure
-        # IMAP_DATA_DIR/spice/<subdir>/filename
-        return self.spice_dir / subdir / self.filename
+        # IMAP_DATA_DIR/imap/spice/<subdir>/filename
+        return spice_dir / subdir / self.filename

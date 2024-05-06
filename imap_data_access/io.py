@@ -63,7 +63,7 @@ def download(file_path: Union[Path, str]) -> Path:
     destination = imap_data_access.config["DATA_DIR"]
     # Create the proper file path object based on the extension and filename
     file_path = Path(file_path)
-    if file_path.suffix[1:] in imap_data_access.VALID_SPICE_EXTENSIONS:
+    if file_path.suffix in imap_data_access.file_validation._SPICE_DIR_MAPPING:
         # SPICE
         path_obj = imap_data_access.SPICEFilePath(file_path.name)
     else:
