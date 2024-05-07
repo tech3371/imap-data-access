@@ -52,7 +52,7 @@ def _print_query_results_table(query_results: list[dict]):
         return
     format_string = "{:<10}|{:<10}|{:<10}|{:<10}|{:<10}|{:<7}|{:<50}|"
     # Add hyphens for a separator between header and data
-    hyphens = "-" * 111 + "|"
+    hyphens = "-" * 113 + "|"
     print(hyphens)
     header = [
         "Instrument",
