@@ -29,6 +29,7 @@ config = {
     "DATA_ACCESS_URL": os.getenv("IMAP_DATA_ACCESS_URL")
     or "https://api.dev.imap-mission.com",
     "DATA_DIR": Path(os.getenv("IMAP_DATA_DIR") or Path.cwd() / "data"),
+    "API_KEY": os.getenv("IMAP_API_KEY"),
 }
 """Settings configuration dictionary.
 
@@ -37,6 +38,9 @@ DATA_DIR : This is where the file data is stored and organized by instrument and
     The default location is a 'data/' folder in the current working directory,
     "but this can be set on the command line using the --data-dir option, or through
     the environment variable IMAP_DATA_DIR.
+API_KEY : This is the API key used to authenticate with the data access API.
+    It can be set on the command line using the --api-key option, or through the
+    environment variable IMAP_API_KEY. It is only necessary for uploading files.
 """
 
 

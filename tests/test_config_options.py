@@ -7,58 +7,44 @@ import subprocess
 import sys
 from pathlib import Path
 
+import pytest
 
-def test_data_dir():
-    """Test that the data directory is set correctly."""
+
+@pytest.mark.parametrize(
+    ("config_var", "default", "expected"),
+    [
+        ("DATA_DIR", Path.cwd() / "data", str(Path("/test/path"))),
+        ("DATA_ACCESS_URL", "https://api.dev.imap-mission.com", "https://test.url"),
+        ("API_KEY", None, "test-api-key"),
+    ],
+)
+def test_configuration_updates(config_var, default, expected):
+    """Test that the configurations get applied correctly.
+
+    testing the default first, and then setting the environment
+    variable explicitly.
+    """
     command = [
         sys.executable,
         "-c",
-        "import imap_data_access; print(imap_data_access.config['DATA_DIR'])",
+        f"import imap_data_access; print(imap_data_access.config['{config_var}'])",
     ]
-    # Default import should be current working directory.
+    # Default case
     proc = subprocess.run(
         command,
         capture_output=True,
         check=True,
         text=True,
     )
-    expected = str(Path.cwd() / "data")
+    assert proc.stdout.strip() == str(default)
+
+    # Setting the environment variable should change the default
+    # environment variables are preprended with IMAP_
+    proc = subprocess.run(
+        command,
+        env={**os.environ, f"IMAP_{config_var}": expected},
+        capture_output=True,
+        check=True,
+        text=True,
+    )
     assert proc.stdout.strip() == expected
-
-    # Setting the environment variable should change the data directory
-    proc = subprocess.run(
-        command,
-        env={**os.environ, "IMAP_DATA_DIR": "/test/path"},
-        capture_output=True,
-        check=True,
-        text=True,
-    )
-    assert proc.stdout.strip() == str(Path("/test/path"))
-
-
-def test_url():
-    """Test that the data directory is set correctly."""
-    command = [
-        sys.executable,
-        "-c",
-        "import imap_data_access; print(imap_data_access.config['DATA_ACCESS_URL'])",
-    ]
-    # Default import should be the dev account
-    proc = subprocess.run(
-        command,
-        capture_output=True,
-        check=True,
-        text=True,
-    )
-    expected = "https://api.dev.imap-mission.com"
-    assert proc.stdout.strip() == expected
-
-    # Setting the environment variable should change the url
-    proc = subprocess.run(
-        command,
-        env={**os.environ, "IMAP_DATA_ACCESS_URL": "https://test.url"},
-        capture_output=True,
-        check=True,
-        text=True,
-    )
-    assert proc.stdout.strip() == "https://test.url"
