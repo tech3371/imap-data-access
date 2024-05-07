@@ -276,3 +276,83 @@ class ScienceFilePath:
             # We want the repointing number as an integer
             components["repointing"] = int(components["repointing"])
         return components
+
+
+# Transform the suffix to the directory structure we are using
+# Commented out mappings are not being used on IMAP
+_SPICE_DIR_MAPPING = {
+    ".bc": "ck",
+    # ".bds": "dsk",
+    # ".bes": "ek",
+    ".bpc": "pck",
+    ".bsp": "spk",
+    ".tf": "fk",
+    # "ti": "ik",
+    ".tls": "lsk",
+    ".tm": "mk",
+    ".tpc": "pck",
+    ".tsc": "sclk",
+}
+"""These are the valid extensions for SPICE files according to NAIF
+https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/req/kernel.html
+
+.bc    binary CK
+.bds   binary DSK
+.bes   binary Sequence Component EK
+.bpc   binary PCK
+.bsp   binary SPK
+.tf    text FK
+.ti    text IK
+.tls   text LSK
+.tm    text meta-kernel (FURNSH kernel)
+.tpc   text PCK
+.tsc   text SCLK
+"""
+
+
+class SPICEFilePath:
+    """Class for building and validating filepaths for SPICE files."""
+
+    class InvalidSPICEFileError(Exception):
+        """Indicates a bad file type."""
+
+        pass
+
+    def __init__(self, filename: str | Path):
+        """Class to store filepath and file management methods for SPICE files.
+
+        If you have an instance of this class, you can be confident you have a valid
+        SPICE file and generate paths in the correct format. The parent of the file
+        path is set by the "IMAP_DATA_DIR" environment variable, or defaults to "data/"
+
+        IMAP_DATA_DIR/spice/<subdir>/filename"
+
+        Parameters
+        ----------
+        filename : str | Path
+            SPICE data filename or file path.
+        """
+        self.filename = Path(filename)
+
+        if self.filename.suffix not in _SPICE_DIR_MAPPING:
+            raise self.InvalidSPICEFileError(
+                f"Invalid SPICE file. Expected file to have one of the following "
+                f"extensions {list(_SPICE_DIR_MAPPING.keys())}"
+            )
+
+    def construct_path(self) -> Path:
+        """Construct valid path from the class variables and data_dir.
+
+        expected return:
+        <data_dir>/imap/spice/<subdir>/filename
+
+        Returns
+        -------
+        Path
+            Upload path
+        """
+        spice_dir = imap_data_access.config["DATA_DIR"] / "imap/spice"
+        subdir = _SPICE_DIR_MAPPING[self.filename.suffix]
+        # Use the file suffix to determine the directory structure
+        # IMAP_DATA_DIR/imap/spice/<subdir>/filename
+        return spice_dir / subdir / self.filename

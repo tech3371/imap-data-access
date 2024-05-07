@@ -1,6 +1,9 @@
 # Documentation ignore
 docs/source/code-documentation/generated
 
+# Ignore the data directory in case that gets created
+data/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

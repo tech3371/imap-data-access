@@ -8,7 +8,7 @@ provides a convenient way to query the IMAP data archive and download data files
 import os
 from pathlib import Path
 
-from imap_data_access.file_validation import ScienceFilePath
+from imap_data_access.file_validation import ScienceFilePath, SPICEFilePath
 from imap_data_access.io import download, query, upload
 
 __all__ = [
@@ -16,6 +16,7 @@ __all__ = [
     "download",
     "upload",
     "ScienceFilePath",
+    "SPICEFilePath",
     "VALID_INSTRUMENTS",
     "VALID_DATALEVELS",
     "VALID_FILE_EXTENSION",

@@ -61,16 +61,19 @@ def download(file_path: Union[Path, str]) -> Path:
         Path to the downloaded file
     """
     destination = imap_data_access.config["DATA_DIR"]
-    if isinstance(file_path, str) and "/" not in file_path:
-        # Construct the directory structure from the filename
-        # This is for science files that contain the directory structure in the filename
-        # Otherwise, we assume the full path to the file was given
-
-        science_file_path = imap_data_access.ScienceFilePath(file_path)
-
-        destination = science_file_path.construct_path()
+    # Create the proper file path object based on the extension and filename
+    file_path = Path(file_path)
+    if file_path.suffix in imap_data_access.file_validation._SPICE_DIR_MAPPING:
+        # SPICE
+        path_obj = imap_data_access.SPICEFilePath(file_path.name)
     else:
-        destination /= file_path
+        # Science
+        path_obj = imap_data_access.ScienceFilePath(file_path.name)
+
+    destination = path_obj.construct_path()
+
+    # Update the file_path with the full path for the download below
+    file_path = destination.relative_to(imap_data_access.config["DATA_DIR"]).as_posix()
 
     # Only download if the file doesn't already exist
     # TODO: Do we want to verify any hashes to make sure we have the right file?
