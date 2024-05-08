@@ -196,7 +196,8 @@ def upload(file_path: Union[Path, str], *, api_key: Optional[str] = None) -> Non
     # We send a GET request with the filename and the server
     # will respond with an s3 presigned URL that we can use
     # to upload the file to the data archive
-    request = urllib.request.Request(url, method="GET", headers={"X-api-key": api_key})
+    headers = {"X-api-key": api_key} if api_key else {}
+    request = urllib.request.Request(url, method="GET", headers=headers)
 
     with _get_url_response(request) as response:
         # Retrieve the key for the upload

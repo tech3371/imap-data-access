@@ -256,7 +256,16 @@ def test_upload_not_relative_to_base(
 @pytest.mark.parametrize(
     "upload_file_path", ["a/b/test-file.txt", Path("a/b/test-file.txt")]
 )
-def test_upload(mock_urlopen: unittest.mock.MagicMock, upload_file_path: str | Path):
+@pytest.mark.parametrize(
+    ("api_key", "expected_header"),
+    [(None, {}), ("test-api-key", {"X-api-key": "test-api-key"})],
+)
+def test_upload(
+    mock_urlopen: unittest.mock.MagicMock,
+    upload_file_path: str | Path,
+    api_key: str | None,
+    expected_header: dict,
+):
     """Test a basic call to the upload API.
 
     Parameters
@@ -265,6 +274,10 @@ def test_upload(mock_urlopen: unittest.mock.MagicMock, upload_file_path: str | P
         Mock object for ``urlopen``
     upload_file_path : str or Path
         The upload file path to test with
+    api_key : str or None
+        The API key to use for the upload
+    expected_header : dict
+        The expected header to be sent with the request
     """
     _set_mock_data(mock_urlopen, b'"https://s3-test-bucket.com"')
     # Call the upload function
@@ -275,7 +288,7 @@ def test_upload(mock_urlopen: unittest.mock.MagicMock, upload_file_path: str | P
     assert file_to_upload.exists()
 
     os.chdir(imap_data_access.config["DATA_DIR"])
-    imap_data_access.upload(upload_file_path)
+    imap_data_access.upload(upload_file_path, api_key=api_key)
 
     # Should have been two calls to urlopen
     # 1. To get the s3 upload url
@@ -298,7 +311,7 @@ def test_upload(mock_urlopen: unittest.mock.MagicMock, upload_file_path: str | P
     assert called_url == expected_url_encoded
     assert request_sent.method == "GET"
     # An API key needs to be added to the header for uploads
-    assert request_sent.headers == {"X-api-key": "test-api-key"}
+    assert request_sent.headers == expected_header
 
     # Verify that we put that response into our second request
     urlopen_call = mock_calls[1]

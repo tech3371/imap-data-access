@@ -12,4 +12,3 @@ def _set_global_config(monkeypatch: pytest.fixture, tmp_path: pytest.fixture):
     monkeypatch.setitem(
         imap_data_access.config, "DATA_ACCESS_URL", "https://api.test.com"
     )
-    monkeypatch.setitem(imap_data_access.config, "API_KEY", "test-api-key")
