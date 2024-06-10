@@ -36,9 +36,11 @@ repository = "https://github.com/IMAP-Science-Operations-Center/imap-data-access
 
 
 [project.optional-dependencies]
-dev = ["ruff"]
+dev = ["imap_data_access[test]", "pre-commit", "ruff"]
 test = ["pytest", "pytest-cov"]
 
+[tool.setuptools]
+packages = ["imap_data_access"]
 
 [tool.pytest.ini_options]
 testpaths = [
