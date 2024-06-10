@@ -76,7 +76,7 @@ The folder structure for data files within the IMAP SDC is rigidly
 defined, so the data access will mimic that structure to make sure
 all data is stored in the same heirarchical structure as the SDC.
 This will enable seamless transition between a user's local system
-and the SDC.
+and the SDC. This is only used for downloads.
 
 A user's root data location can be specified as an environment
 variable ``IMAP_DATA_DIR`` or through a configuration dictionary
