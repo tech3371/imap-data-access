@@ -234,25 +234,6 @@ def test_upload_no_file(mock_urlopen: unittest.mock.MagicMock):
     assert mock_urlopen.call_count == 0
 
 
-def test_upload_not_relative_to_base(
-    monkeypatch: pytest.fixture, mock_urlopen: unittest.mock.MagicMock
-):
-    """Test a call to the upload API for a file stored in a bad location.
-
-    Parameters
-    ----------
-    monkeypatch :  pytest.fixture
-        Used to set the ``DATA_DIR`` during tests
-    mock_urlopen : unittest.mock.MagicMock
-        Mock object for ``urlopen``
-    """
-    # Change the base directory to something else temporarily
-    monkeypatch.setitem(imap_data_access.config, "DATA_DIR", Path.cwd() / "/a/b/c")
-    with pytest.raises(ValueError, match="File"):
-        imap_data_access.upload(Path(__file__))
-    assert mock_urlopen.call_count == 0
-
-
 @pytest.mark.parametrize(
     "upload_file_path", ["a/b/test-file.txt", Path("a/b/test-file.txt")]
 )
@@ -307,7 +288,7 @@ def test_upload(
     urlopen_call = mock_calls[0]
     request_sent = urlopen_call.args[0]
     called_url = request_sent.full_url
-    expected_url_encoded = "https://api.test.com/upload/a/b/test-file.txt"
+    expected_url_encoded = "https://api.test.com/upload/test-file.txt"
     assert called_url == expected_url_encoded
     assert request_sent.method == "GET"
     # An API key needs to be added to the header for uploads

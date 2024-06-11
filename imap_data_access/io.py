@@ -164,8 +164,7 @@ def upload(file_path: Union[Path, str], *, api_key: Optional[str] = None) -> Non
     Parameters
     ----------
     file_path : pathlib.Path or str
-        Path to the file to upload. It must be located within
-        the ``imap_data_access.config["DATA_DIR"]`` directory.
+        Path to the file to upload.
     api_key : str, optional
         API key to authenticate with the data access API. If not provided,
         the value from the IMAP_API_KEY environment variable will be used.
@@ -174,21 +173,9 @@ def upload(file_path: Union[Path, str], *, api_key: Optional[str] = None) -> Non
     if not file_path.exists():
         raise FileNotFoundError(file_path)
 
-    if not file_path.is_relative_to(imap_data_access.config["DATA_DIR"]):
-        raise ValueError(
-            f"File {file_path} is not within the data directory: "
-            f"{imap_data_access.config['DATA_DIR']}"
-        )
-
-    # Strip off the data directory to get the upload path + name
-    # Must be posix style for the URL
-    upload_name = str(
-        file_path.relative_to(imap_data_access.config["DATA_DIR"]).as_posix()
-    )
-
     url = f"{imap_data_access.config['DATA_ACCESS_URL']}"
     # The upload name needs to be given as a path parameter
-    url += f"/upload/{upload_name}"
+    url += f"/upload/{file_path.name}"
     logger.info("Uploading file %s to %s", file_path, url)
 
     # Create a request header with the API key
