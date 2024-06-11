@@ -31,11 +31,8 @@ def _download_parser(args: argparse.Namespace):
     args : argparse.Namespace
         An object containing the parsed arguments and their values
     """
-    try:
-        output_path = imap_data_access.download(args.file_path)
-        print(f"Successfully downloaded the file to: {output_path}")
-    except imap_data_access.io.IMAPDataAccessError as e:
-        print(e)
+    output_path = imap_data_access.download(args.file_path)
+    print(f"Successfully downloaded the file to: {output_path}")
 
 
 def _print_query_results_table(query_results: list[dict]):
@@ -106,11 +103,7 @@ def _query_parser(args: argparse.Namespace):
         for key, value in vars(args).items()
         if key in valid_args and value is not None
     }
-    try:
-        query_results = imap_data_access.query(**query_params)
-    except imap_data_access.io.IMAPDataAccessError as e:
-        print(e)
-        return
+    query_results = imap_data_access.query(**query_params)
 
     if args.output_format == "table":
         _print_query_results_table(query_results)
@@ -127,11 +120,8 @@ def _upload_parser(args: argparse.Namespace):
     args : argparse.Namespace
         An object containing the parsed arguments and their values
     """
-    try:
-        imap_data_access.upload(args.file_path)
-        print("Successfully uploaded the file to the IMAP SDC")
-    except imap_data_access.io.IMAPDataAccessError as e:
-        print(e)
+    imap_data_access.upload(args.file_path)
+    print("Successfully uploaded the file to the IMAP SDC")
 
 
 def main():
@@ -287,7 +277,7 @@ def main():
         # We got an explicit data directory from the command line
         data_path = args.data_dir.resolve()
         if not data_path.exists():
-            raise ValueError(f"Data directory {args.data_dir} does not exist")
+            parser.error(f"Data directory {args.data_dir} does not exist")
         # Set the data directory to the user-supplied value
         imap_data_access.config["DATA_DIR"] = data_path
 
@@ -304,7 +294,8 @@ def main():
     try:
         args.func(args)
     except Exception as e:
-        parser.error(e)
+        # Make sure we are exiting with non-zero exit code and printing the message
+        parser.exit(status=1, message=str(e) + "\n")
 
 
 if __name__ == "__main__":
