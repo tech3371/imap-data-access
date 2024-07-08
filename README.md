@@ -1,4 +1,7 @@
 # IMAP Data Access Package
+<!-- ALL-CONTRIBUTORS-BADGE:START - Do not remove or modify this section -->
+[![All Contributors](https://img.shields.io/badge/all_contributors-4-orange.svg?style=flat-square)](#contributors-)
+<!-- ALL-CONTRIBUTORS-BADGE:END -->
 
 This lightweight  Python package allows users to download, query, and upload data from the IMAP Science Data Center (SDC).
 
@@ -172,3 +175,28 @@ science_file = imap_data_access.ScienceFilePath("imap_swe_l0_sci_20240101_v001.p
 # Filepath = /imap/swe/l0/2024/01/imap_swe_l0_sci_20240101_v001.pkts
 filepath = science_file.construct_path()
 ```
+
+## Contributors ✨
+
+Thanks goes to these wonderful people ([emoji key](https://allcontributors.org/docs/en/emoji-key)):
+
+<!-- ALL-CONTRIBUTORS-LIST:START - Do not remove or modify this section -->
+<!-- prettier-ignore-start -->
+<!-- markdownlint-disable -->
+<table>
+  <tbody>
+    <tr>
+      <td align="center" valign="top" width="14.28%"><a href="http://greglucas.github.io"><img src="https://avatars.githubusercontent.com/u/12417828?v=4?s=100" width="100px;" alt="Greg Lucas"/><br /><sub><b>Greg Lucas</b></sub></a><br /><a href="https://github.com/IMAP-Science-Operations-Center/imap-data-access/commits?author=greglucas" title="Code">💻</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/bourque"><img src="https://avatars.githubusercontent.com/u/2250769?v=4?s=100" width="100px;" alt="Matthew Bourque"/><br /><sub><b>Matthew Bourque</b></sub></a><br /><a href="https://github.com/IMAP-Science-Operations-Center/imap-data-access/commits?author=bourque" title="Code">💻</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/maxinelasp"><img src="https://avatars.githubusercontent.com/u/117409426?v=4?s=100" width="100px;" alt="Maxine Hartnett"/><br /><sub><b>Maxine Hartnett</b></sub></a><br /><a href="https://github.com/IMAP-Science-Operations-Center/imap-data-access/commits?author=maxinelasp" title="Code">💻</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/mfacchinelli"><img src="https://avatars.githubusercontent.com/u/19731497?v=4?s=100" width="100px;" alt="Michele Facchinelli"/><br /><sub><b>Michele Facchinelli</b></sub></a><br /><a href="https://github.com/IMAP-Science-Operations-Center/imap-data-access/commits?author=mfacchinelli" title="Code">💻</a></td>
+    </tr>
+  </tbody>
+</table>
+
+<!-- markdownlint-restore -->
+<!-- prettier-ignore-end -->
+
+<!-- ALL-CONTRIBUTORS-LIST:END -->
+
+This project follows the [all-contributors](https://github.com/all-contributors/all-contributors) specification. Contributions of any kind welcome!
