@@ -20,6 +20,8 @@ import logging
 import os
 from pathlib import Path
 
+from file_validation import ScienceFilePath
+
 import imap_data_access
 
 
@@ -80,6 +82,11 @@ def _print_query_results_table(query_results: list[dict]):
     print(hyphens)
 
 
+def extract_version_number(str_version: str) -> int:
+    """Take a version string 'vXXX' and return and int 'XXX'."""
+    return int(str_version[1:4])
+
+
 def _query_parser(args: argparse.Namespace):
     """Query the IMAP SDC.
 
@@ -98,6 +105,7 @@ def _query_parser(args: argparse.Namespace):
         "repointing",
         "version",
         "extension",
+        "filename",
     ]
 
     query_params = {
@@ -105,6 +113,23 @@ def _query_parser(args: argparse.Namespace):
         for key, value in vars(args).items()
         if key in valid_args and value is not None
     }
+
+    # Checking to see if a filename was passed.
+    if args.filename is not None:
+        del query_params["filename"]
+        if query_params:
+            raise TypeError("Too many arguments, '--filename' should be ran by itself")
+
+        file_path = ScienceFilePath(args.filename)
+        query_params = {
+            "instrument": file_path.instrument,
+            "data_level": file_path.data_level,
+            "descriptor": file_path.descriptor,
+            "start_date": file_path.start_date,
+            "repointing": file_path.repointing,
+            "version": file_path.version,
+            "extension": file_path.extension,
+        }
 
     query_results = imap_data_access.query(**query_params)
 
@@ -286,6 +311,14 @@ def main():  # noqa: PLR0915
         help="How to format the output, default is 'table'",
         choices=["table", "json"],
         default="table",
+    )
+    query_parser.add_argument(
+        "--filename",
+        type=str,
+        required=False,
+        help="Name of a file to be searched for. For convention standards see https://imap-"
+        "processing.readthedocs.io/en/latest/development-guide/style-guide/naming-conventions"
+        ".html#data-product-file-naming-conventions",
     )
     query_parser.set_defaults(func=_query_parser)
 
