@@ -99,11 +99,13 @@ def _query_parser(args: argparse.Namespace):
         "version",
         "extension",
     ]
+
     query_params = {
         key: value
         for key, value in vars(args).items()
         if key in valid_args and value is not None
     }
+
     query_results = imap_data_access.query(**query_params)
 
     if args.output_format == "table":
@@ -264,7 +266,9 @@ def main():  # noqa: PLR0915
         "--version",
         type=str,
         required=False,
-        help="Version of the product in the format 'v001'",
+        help="Version of the product in the format 'v001'."
+        " Must have one other parameter to run."
+        " Passing 'latest' will return latest version of a file",
     )
     query_parser.add_argument(
         "--extension", type=str, required=False, help="File extension (cdf, pkts)"
