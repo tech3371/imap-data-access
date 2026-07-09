@@ -570,7 +570,6 @@ def release(
     release_type: Optional[str] = None,
     start_date: Optional[str] = None,
     end_date: Optional[str] = None,
-    release_number: Optional[int] = None,
     exclude_file: Optional[Union[Path, str]] = None,
     manifest_file: Optional[Union[Path, str]] = None,
 ) -> None:
@@ -592,9 +591,6 @@ def release(
         Start date in YYYYMMDD format
     end_date : str, optional
         End date in YYYYMMDD format
-    release_number : int, optional
-        Release number. Defaults to ``None``. Required if release_type is
-        'release' or 'reprocess' and should be an integer value.
     exclude_file : str, optional
         Path to exclude file containing list of files to exclude from public release.
     manifest_file : str, optional
@@ -630,12 +626,6 @@ def release(
                 + ", ".join(imap_data_access.VALID_INSTRUMENTS)
             )
 
-        # Validate release_type == "release" requires release_number
-        if release_type == ReleaseType.RELEASE.value and release_number is None:
-            raise ValueError(
-                "The 'release_number' parameter is required for 'release' release type."
-            )
-
         # Validate start_date
         if not file_validation.ImapFilePath.is_valid_date(start_date):
             raise ValueError("Not a valid start date, use format 'YYYYMMDD'.")
@@ -653,10 +643,6 @@ def release(
             f"'{release_type}' release type."
         )
 
-    if release_type == ReleaseType.REPROCESS.value and release_number is None:
-        raise ValueError(
-            "The 'release_number' parameter is required for 'reprocess' release type."
-        )
     # Handle exclude file upload if provided
     if exclude_file is not None:
         # Upload the exclude file using the standard upload function
@@ -682,10 +668,6 @@ def release(
         "start_date": start_date,
         "end_date": end_date,
     }
-
-    # Add release_number only if release_type is 'release' or 'reprocess'
-    if release_type in {ReleaseType.RELEASE.value, ReleaseType.REPROCESS.value}:
-        release_params["release_number"] = release_number
 
     # Add optional parameters if provided
     if exclude_file is not None:

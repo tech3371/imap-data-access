@@ -376,7 +376,6 @@ def _release_parser(args: argparse.Namespace):
         release_type=args.release_type,
         start_date=args.start_date,
         end_date=args.end_date,
-        release_number=args.release_number,
         exclude_file=args.exclude_file,
         manifest_file=args.manifest_file,
     )
@@ -771,20 +770,8 @@ def main():
             "- 'unrelease': Unrelease previously released files due to\n"
             "  various causes and reasons. Use --manifest-file to specify\n"
             "  files to unrelease.\n"
-            "- 'reprocess': Trigger reprocessing for the specified "
-            "--release-number."
         ),
         choices=[e.value for e in ReleaseType],
-    )
-    parser_release.add_argument(
-        "--release-number",
-        type=int,
-        required=False,
-        metavar="NUMBER",
-        help=(
-            "Release number (required only when --release-type is "
-            "'release' or 'reprocess')."
-        ),
     )
     parser_release.add_argument(
         "--exclude-file",
