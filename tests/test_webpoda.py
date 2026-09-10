@@ -123,9 +123,7 @@ def test_get_repoint_file_no_files(mock_send_request, mock_request):
     mock_response.json.return_value = []
     mock_send_request.return_value = mock_response
 
-    result = get_repoint_file(
-        datetime.datetime(2024, 12, 1), datetime.datetime(2024, 12, 3)
-    )
+    result = get_repoint_file()
 
     assert result is None
 
@@ -142,18 +140,26 @@ def test_get_repoint_file(mock_download, mock_send_request, mock_request):
     ]
     mock_send_request.return_value = mock_response
 
-    start_date = datetime.datetime(2024, 12, 1)
-    end_date = datetime.datetime(2024, 12, 3)
-    result = get_repoint_file(start_date, end_date)
+    before_call = datetime.datetime.now()
+    result = get_repoint_file()
+    after_call = datetime.datetime.now()
 
-    mock_request.assert_called_once_with(
+    # The ingestion window queried is always "the last week", regardless of
+    # any spacecraft data range being downloaded.
+    assert mock_request.call_count == 1
+    call_args = mock_request.call_args
+    assert call_args[0] == (
         "GET",
         f"{imap_data_access.config['DATA_ACCESS_URL']}/repoint-table",
-        params={
-            "start_ingest_date": start_date.strftime("%Y%m%d"),
-            "end_ingest_date": end_date.strftime("%Y%m%d"),
-        },
     )
+    queried_end = datetime.datetime.strptime(
+        call_args.kwargs["params"]["end_ingest_date"], "%Y%m%d"
+    )
+    queried_start = datetime.datetime.strptime(
+        call_args.kwargs["params"]["start_ingest_date"], "%Y%m%d"
+    )
+    assert before_call.date() <= queried_end.date() <= after_call.date()
+    assert queried_end - queried_start == datetime.timedelta(weeks=1)
     mock_download.assert_called_once_with("newest.repoint.csv")
     assert result == "downloaded_repoint_table_path"
 
@@ -326,8 +332,17 @@ def test_compare_and_write_new_data_unchanged(mock_query, mock_download, tmp_pat
     )
 
     assert path is None
-    # Both the new duplicate and the downloaded prod file are cleaned up
-    assert not prod_path.exists()
+    # The duplicate new file and the downloaded prod file are left in place
+    new_path = ScienceFilePath.generate_from_inputs(
+        instrument=instrument,
+        data_level="l0",
+        descriptor="raw",
+        start_time=start_time.strftime("%Y%m%d"),
+        major_version=1,
+        minor_version=2,
+    ).construct_path()
+    assert new_path.exists()
+    assert prod_path.exists()
 
 
 @patch("imap_data_access.webpoda.get_packet_binary_data_sctime")
@@ -375,11 +390,10 @@ def test_download_daily_data(
         ).construct_path()
         assert path == expected_file_path
         n_apids = len(INSTRUMENT_APIDS[instrument])
-        # If uploaded, the local file is cleaned up afterwards
-        assert path.exists() is not upload_to_server
+        # Local files are kept around regardless of whether they were uploaded
+        assert path.exists()
+        assert path.read_bytes() == b"\x00\x01\x02\x03" * n_apids
         assert mock_upload.called is upload_to_server
-        if not upload_to_server:
-            assert path.read_bytes() == b"\x00\x01\x02\x03" * n_apids
 
 
 @patch("imap_data_access.webpoda.get_packet_binary_data_sctime")
@@ -438,7 +452,8 @@ def test_download_repointing_data(
             minor_version=1,
         ).construct_path()
         assert path == expected_file_path
-        assert path.exists() is not upload_to_server
+        # Local files are kept around regardless of whether they were uploaded
+        assert path.exists()
         assert mock_upload.called is upload_to_server
 
 

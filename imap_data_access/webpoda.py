@@ -258,24 +258,23 @@ def get_packet_binary_data_sctime(
         return response.content
 
 
-def get_repoint_file(
-    start_date: datetime.datetime, end_date: datetime.datetime
-) -> Optional[Path]:
-    """Query the repoint table for the given date range, downloading the latest file.
+def get_repoint_file() -> Optional[Path]:
+    """Download the most recently ingested repoint table.
 
-    Parameters
-    ----------
-    start_date : datetime.datetime
-        The start of the ingestion date range to query.
-    end_date : datetime.datetime
-        The end of the ingestion date range to query.
+    The repoint file is a cumulative data set (each newly ingested file
+    contains every repointing since launch), so this always looks at
+    ingestion date rather than any particular spacecraft data range: we only
+    need to look back over the last week of ingests to find the latest and
+    greatest table.
 
     Returns
     -------
     pathlib.Path or None
         The path to the downloaded repoint table file, or None if no repoint
-        files were found for the given date range.
+        files have been ingested in the last week.
     """
+    end_date = datetime.datetime.now()
+    start_date = end_date - datetime.timedelta(weeks=1)
     url = f"{imap_data_access.config['DATA_ACCESS_URL']}/repoint-table"
     params = {
         "start_ingest_date": start_date.strftime("%Y%m%d"),
@@ -382,8 +381,6 @@ def download_daily_data(
     if upload_to_server:
         for path in paths:
             _upload_if_requested(path, upload_to_server)
-            # clean up files after upload to avoid filling up disk space
-            path.unlink()
 
     return paths
 
@@ -488,8 +485,6 @@ def download_repointing_data(
     if upload_to_server:
         for path in file_paths:
             _upload_if_requested(path, upload_to_server)
-            # clean up files after upload to avoid filling up disk space
-            path.unlink()
 
     return file_paths
 
@@ -783,11 +778,8 @@ def _compare_and_write_new_data(
     data_changed = compare_files(prod_l0_path, new_path)
     if not data_changed:
         logger.info(
-            f"Data for {prod_l0_path} hasn't changed, removing duplicate {new_path}"
+            f"Data for {prod_l0_path} hasn't changed, {new_path} is a duplicate"
         )
-        # Clean up the new file since it is a duplicate of the production file
-        new_path.unlink()
-        prod_l0_path.unlink()
         return None
 
     logger.info(f"Data for {prod_l0_path} has changed, keeping new version {new_path}")

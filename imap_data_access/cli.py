@@ -362,7 +362,7 @@ def _webpoda_parser(args: argparse.Namespace):
     end_time = datetime.datetime.combine(end_time, datetime.time.max)
 
     if args.instrument in REPOINTING_INSTRUMENTS:
-        repoint_file_path = get_repoint_file(args.start_date, end_time)
+        repoint_file_path = get_repoint_file()
         if repoint_file_path is None:
             raise ValueError("No repoint files found.")
         with open(repoint_file_path) as f:
@@ -373,8 +373,6 @@ def _webpoda_parser(args: argparse.Namespace):
             end_time=end_time,
             repoint_data=repoint_data,
         )
-        # Clean up the downloaded repoint table
-        repoint_file_path.unlink()
     else:
         download_daily_data(
             instrument=args.instrument,
