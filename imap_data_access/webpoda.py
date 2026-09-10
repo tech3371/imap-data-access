@@ -1,21 +1,19 @@
-"""Download all data since the last contact from webpoda.
+"""Download packet data from webpoda and compare it against production.
 
-This script goes through and downloads all the newly arrived data from webpoda since
-the last contact.
-
-1. Iterate over each APID
-2. Make a query to webpoda for ERTs between the last contact time and now.
-3. Create a list of S/C dates with data from the last contact time.
-   NOTE: This is not the same as the ERTs because there could be backfilled gaps.
-4. Iterate over the S/C dates and download the binary data for each date.
-5. Save the data to a local file
+This module downloads newly arrived instrument packet data from webpoda, either
+for whole days (download_daily_data) or for individual repointings
+(download_repointing_data), based on Spacecraft Time (SCT). For any
+instrument/date (and repointing, if applicable) that already has an L0 file in
+production, the freshly downloaded data is compared against that file via
+_compare_and_write_new_data (which uses compare_files), so only new or
+changed data is kept and returned.
 
 Location of list of APIDs and associated instruments:
 https://lasp.colorado.edu/galaxy/spaces/IMAP/pages/155648242/Packet+Decommutation+Resource+Page+-+IMAP
 """
 
-import csv
 import datetime
+import hashlib
 import logging
 from pathlib import Path
 from typing import Optional
@@ -23,7 +21,6 @@ from typing import Optional
 import requests
 
 import imap_data_access
-from imap_data_access.file_validation import Version
 from imap_data_access.io import IMAPDataAccessError, _make_request
 
 logger = logging.getLogger(__name__)
@@ -261,85 +258,92 @@ def get_packet_binary_data_sctime(
         return response.content
 
 
+def get_repoint_file(
+    start_date: datetime.datetime, end_date: datetime.datetime
+) -> Optional[Path]:
+    """Query the repoint table for the given date range, downloading the latest file.
+
+    Parameters
+    ----------
+    start_date : datetime.datetime
+        The start of the ingestion date range to query.
+    end_date : datetime.datetime
+        The end of the ingestion date range to query.
+
+    Returns
+    -------
+    pathlib.Path or None
+        The path to the downloaded repoint table file, or None if no repoint
+        files were found for the given date range.
+    """
+    url = f"{imap_data_access.config['DATA_ACCESS_URL']}/repoint-table"
+    params = {
+        "start_ingest_date": start_date.strftime("%Y%m%d"),
+        "end_ingest_date": end_date.strftime("%Y%m%d"),
+    }
+    request = requests.Request("GET", url, params=params).prepare()
+    with _make_request(request) as response:
+        repoint_files = response.json()
+
+    if not repoint_files:
+        logger.info("No repoint files found.")
+        logger.info("-" * 80)
+        return None
+
+    # Entries are cumulative repoint-table snapshots, often sharing the same
+    # end_date across multiple versions, so the most recently ingested one is
+    # the freshest/most complete table.
+    latest_repoint_file = max(
+        repoint_files,
+        key=lambda item: datetime.datetime.strptime(
+            item["ingestion_date"], "%Y-%m-%d, %H:%M:%S"
+        ),
+    )
+    return imap_data_access.download(latest_repoint_file["file_path"])
+
+
 def download_daily_data(
     instrument: str,
     start_time: datetime.datetime,
     end_time: datetime.datetime,
     upload_to_server=False,
-    query_by_ert=True,
 ):
     """Download data for the apid and start/end time range from webpoda.
 
-    PODA stands for packet on demand access. This function requests the IMAP specific
-    API endpoint, so all APIDs must be from the IMAP mission.
+    WebPODA stands for packet on demand access. This function requests the
+    IMAP specific API endpoint, so all APIDs must be from the IMAP mission.
 
     Parameters
     ----------
     instrument : str
         The instrument to download data for.
     start_time : datetime.datetime
-        The start time of the query. If query_by_ert is True, this uses Earth Received
-        Time (ERT). If query_by_ert is False, this uses Spacecraft Time (SCT).
+        The start of the date range to download, in Spacecraft Time (SCT).
     end_time : datetime.datetime
-        The end time of the query. If query_by_ert is True, this uses Earth Received
-        Time (ERT). If query_by_ert is False, this uses Spacecraft Time (SCT).
+        The end of the date range to download, in Spacecraft Time (SCT).
     upload_to_server : bool, optional
         If True, upload the data to the SDC data bucket, by default False
-    query_by_ert : bool, optional
-        If True, queries all data for all APIDs using the Earth Received Time (ERT)
-        date range. If False, queries all data for all APIDs with Spacecraft Time (SCT)
-        within the specified start and end date range. Default to True.
+
+    Returns
+    -------
+    list[pathlib.Path]
+        One path per day in [start_time, end_time] that has new or changed
+        data, skipping days with no packets or where the freshly queried data
+        matches what's already in production.
     """
     apids = INSTRUMENT_APIDS[instrument]
     logger.info(f"Downloading data for instrument [{instrument}]")
 
-    if query_by_ert:
-        # Query by ERT to find unique spacecraft dates
-        logger.info(
-            f"Querying Earth Received Time (ERT) range from {start_time} to {end_time}"
-        )
-        packet_times = [
-            p
-            for apid in apids
-            for p in get_packet_times_ert(apid, start_time, end_time)
-        ]
-        # Get the unique dates from the packet times
-        unique_dates = sorted(set([dt.date() for dt in packet_times]))
-        logger.info(
-            f"Found [{len(packet_times)}] packets for instrument [{instrument}] "
-            f"between earth received time {start_time} and {end_time}"
-        )
-        logger.info(f"Unique spacecraft dates with packets: {unique_dates}")
-    else:
-        # Query by SCT - generate all dates in the range
-        logger.info(
-            "Querying Spacecraft Time (SCT) data that are in the "
-            f"range from {start_time} to {end_time}"
-        )
-        unique_dates = []
-        current_date = start_time.date()
-        end_date = end_time.date()
-        while current_date <= end_date:
-            unique_dates.append(current_date)
-            current_date += datetime.timedelta(days=1)
-        logger.info(
-            f"Querying {len(unique_dates)} spacecraft dates for "
-            f"instrument [{instrument}] between spacecraft time "
-            f"{start_time} and {end_time}"
-        )
-        logger.info(f"Spacecraft dates to query: {unique_dates}")
+    # Unique dates between start_time and end_time, inclusive of both endpoints
+    unique_dates = [
+        start_time.date() + datetime.timedelta(days=i)
+        for i in range((end_time.date() - start_time.date()).days + 1)
+    ]
 
     # Iterate over the packet dates to make a query for each individual spacecraft day
     # packet_date 00:00:00 -> packet_date+1 00:00:00
+    paths = []
     for date in unique_dates:
-        path = _get_latest_version_file_path(
-            instrument=instrument,
-            start_time=date,
-        )
-        if path.exists():
-            logger.info(f"Skipping {path} because it already exists.")
-            continue
-
         daily_start_time = datetime.datetime.combine(date, datetime.time.min)
         daily_end_time = daily_start_time + datetime.timedelta(days=1)
 
@@ -358,51 +362,59 @@ def download_daily_data(
                 for apid in apids
             ]
         )
+        if not daily_packet_content:
+            logger.info(
+                f"No data found for instrument [{instrument}] on {date}. Skipping."
+            )
+            logger.info("-" * 80)
+            continue
 
-        logger.info(
-            f"Saving binary data of size {len(daily_packet_content) // 1000} kB "
-            f"to {path}"
+        path = _compare_and_write_new_data(
+            instrument=instrument,
+            start_time=date,
+            content=daily_packet_content,
         )
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_bytes(daily_packet_content)
-        if upload_to_server:
-            # Upload the data to the server
-            logger.info("Uploading packet file to the server: %s", path)
-            try:
-                imap_data_access.upload(path)
-            except IMAPDataAccessError as e:
-                # We don't want to ruin all subsequent downloads if one fails
-                # during upload, so log the error and continue
-                logger.error(f"Failed to upload {path} to the server: {e!r}")
+        # Only keep paths of files that have new data or updated data.
+        if path is not None:
+            paths.append(path)
 
     logger.info(f"Finished downloading data for instrument [{instrument}]")
+    if upload_to_server:
+        for path in paths:
+            _upload_if_requested(path, upload_to_server)
+            # clean up files after upload to avoid filling up disk space
+            path.unlink()
+
+    return paths
 
 
 def download_repointing_data(
     instrument: str,
     start_time: datetime.datetime,
     end_time: datetime.datetime,
-    repointing_file: Path,
+    repoint_data: list,
     upload_to_server=False,
 ):
     """Download data for the instrument and start/end time range from webpoda.
 
-    PODA stands for packet on demand access. This function requests the IMAP specific
-    API endpoint, so all APIDs must be from the IMAP mission.
+    WebPODA stands for packet on demand access. This function requests the
+    IMAP specific API endpoint, so all APIDs must be from the IMAP mission.
 
-    The query is based on earth received time (ert), so all packets received during
-    a specific downlink to the ground, not the spacecraft time.
+    repoint_data contains every repointing since launch, so start_time and
+    end_time are used to down-select which repoint ID in it to query and
+    create new L0 files.
 
     Parameters
     ----------
     instrument : str
         The instrument to download data for.
     start_time : datetime.datetime
-        The start time of the query in Earth Received Time (ERT).
+        Only repoint IDs overlapping this start time or later are queried.
     end_time : datetime.datetime
-        The end time of the query in Earth Received Time (ERT).
-    repointing_file : Path
-        The path to the repointing file. This file should contain the repointing
+        Only repoint IDs overlapping this end time or earlier are queried.
+    repoint_data : list
+        A list of dictionaries, each representing a row in the repointing file.
+        This file should contain the repointing
         times in the format:
             repoint_start_sec_sclk	UINT
             repoint_start_subsec_sclk	UINT
@@ -411,95 +423,41 @@ def download_repointing_data(
             repoint_start_utc	str
             repoint_end_utc	str
             repoint_id	UINT
-    version : str, optional
-        The version to use on the downloaded data file, by default "v001"
     upload_to_server : bool, optional
         If True, upload the data to the SDC data bucket, by default False
-    """
-    # Store a list of rows in the repointing file
-    with open(repointing_file) as f:
-        repointings = list(csv.DictReader(f))
-    logger.debug(
-        f"Repointing file [{repointing_file}] contains [{len(repointings)}] rows"
-    )
 
+    Returns
+    -------
+    list[pathlib.Path]
+        One path per repoint ID overlapping [start_time, end_time] that has
+        new or changed data, skipping repoint IDs with no packets or where the
+        freshly queried data matches what's already in production.
+    """
     apids = INSTRUMENT_APIDS[instrument]
     logger.info(f"Downloading data for instrument [{instrument}]")
-    # Make a query to get the timestamps of the packets during this ERT
-    # range. We can/will get packets outside of this range because of the way we are
-    # only getting data after the fact and potentially backfilling data gaps.
-    packet_times = sorted(
-        [p for apid in apids for p in get_packet_times_ert(apid, start_time, end_time)]
-    )
-    if len(packet_times) == 0:
-        logger.warning(
-            f"No packets found for instrument [{instrument}] "
-            f"between earth received time {start_time} and {end_time}"
+    file_paths = []
+
+    # Iterate once over every repoint ID overlapping [start_time, end_time],
+    # downloading and writing a file for each one that has new/changed data.
+
+    # Find all unique repoint id in the input date range
+    repoints = _repoints_overlapping_date_range(repoint_data, start_time, end_time)
+
+    if not repoints:
+        logger.info(
+            f"No repoint IDs found for instrument [{instrument}] between "
+            f"{start_time} and {end_time}. Skipping."
         )
-        return
+        logger.info("-" * 80)
+        return None
 
     logger.info(
-        f"Found [{len(packet_times)}] packets for instrument [{instrument}] "
-        f"between earth received time {start_time} and {end_time}"
+        f"Found repoint IDs for input date range [{start_time}, {end_time}]: "
+        f"{[r[0] for r in repoints]}"
     )
 
-    # Iterate over the packet dates to make a query for each individual "pointing"
-    # A "pointing" is defined as the time between the end of one repointing maneuver
-    # to the end of the next repointing maneuver.
-    # NOTE: We iterate over the repointings rather than the packet times because it is
-    #       assumed to be the shorter list (1/day vs 1000s of packets/day per apid)
-    for i in range(len(repointings) - 1):
-        # skip i and i+1 values that are NaN
-        if repointings[i]["repoint_end_utc"].lower() == "nan":
-            # This pointing never "started"
-            continue
-        if repointings[i + 1]["repoint_end_utc"].lower() == "nan":
-            # Missing repointing end time, so it isn't a complete "pointing" yet.
-            continue
-        pointing_start = datetime.datetime.strptime(
-            repointings[i]["repoint_end_utc"], "%Y-%m-%d %H:%M:%S.%f"
-        )
-        if pointing_start > packet_times[-1]:
-            # This pointing is after the last packet time, so skip it
-            logger.debug(
-                f"Pointing start {pointing_start} is after last packet time "
-                f"{packet_times[-1]}, skipping"
-            )
-            continue
-        # NOTE: We need to make sure we are not double grabbing packets into the
-        #       pointings. The times included are [repointing_start, repointing_end),
-        #       exclusive on the right edge
-        pointing_end = datetime.datetime.strptime(
-            repointings[i + 1]["repoint_end_utc"], "%Y-%m-%d %H:%M:%S.%f"
-        )
-        if pointing_end < packet_times[0]:
-            # This pointing is before the first packet time, so skip it
-            logger.debug(
-                f"Pointing end {pointing_end} is before first packet time "
-                f"{packet_times[0]}, skipping"
-            )
-            continue
-        if not any(pointing_start <= p_time <= pointing_end for p_time in packet_times):
-            # This pointing didn't contain any packets within it
-            logger.debug(
-                f"Pointing start {pointing_start} and end {pointing_end} "
-                f"didn't contain any packets, skipping"
-            )
-            continue
-
-        logger.info(
-            f"Found packets during pointing [{repointings[i]['repoint_id']}] "
-            f"between {pointing_start} and {pointing_end}"
-        )
-
-        path = _get_latest_version_file_path(
-            instrument=instrument,
-            start_time=pointing_start,
-            repointing=int(repointings[i]["repoint_id"]),
-        )
-        if path.exists():
-            logger.info(f"Skipping {path} because it already exists.")
-            continue
+    for repoint in repoints:
+        repoint_id, pointing_start, pointing_end = repoint
 
         # Iterate over all apids, downloading the content for this time period
         # concatenating all the binary returns into a single binary file
@@ -509,33 +467,188 @@ def download_repointing_data(
                 for apid in apids
             ]
         )
+        if not pointing_packet_content:
+            logger.info(
+                f"No data found for instrument [{instrument}] repoint ID "
+                f"[{repoint_id}] for {pointing_start} to {pointing_end}. Skipping."
+            )
+            logger.info("-" * 80)
+            continue
 
-        logger.info(
-            f"Saving binary data of size {len(pointing_packet_content) // 1000} kB "
-            f"to {path}"
+        path = _compare_and_write_new_data(
+            instrument=instrument,
+            start_time=pointing_start,
+            content=pointing_packet_content,
+            repointing=repoint_id,
         )
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_bytes(pointing_packet_content)
-        if upload_to_server:
-            # Upload the data to the server
-            logger.info("Uploading packet file to the server: %s", path)
-            try:
-                imap_data_access.upload(path)
-            except IMAPDataAccessError as e:
-                # We don't want to ruin all subsequent downloads if one fails
-                # during upload, so log the error and continue
-                logger.error(f"Failed to upload {path} to the server: {e}")
+        if path is not None:
+            file_paths.append(path)
 
     logger.info(f"Finished downloading data for instrument [{instrument}]")
+    if upload_to_server:
+        for path in file_paths:
+            _upload_if_requested(path, upload_to_server)
+            # clean up files after upload to avoid filling up disk space
+            path.unlink()
+
+    return file_paths
 
 
-def _get_latest_version_file_path(
-    instrument: str, start_time: datetime.datetime, repointing: Optional[int] = None
+def _repoints_overlapping_date_range(
+    repoint_data: list,
+    start_time: datetime.datetime,
+    end_time: datetime.datetime,
+) -> list[tuple[int, datetime.datetime, datetime.datetime]]:
+    """Get the repoint IDs in the date range.
+
+    A "pointing" spans from the end of one repointing maneuver to the end of
+    the next. Rows with a NaN repoint_end_utc (an incomplete repointing
+    maneuver) are skipped.
+
+    Parameters
+    ----------
+    repoint_data : list
+        A list of dictionaries, each representing a row in the repointing file.
+    start_time : datetime.datetime
+        Only pointings overlapping this start time or later are included.
+    end_time : datetime.datetime
+        Only pointings overlapping this end time or earlier are included.
+
+    Returns
+    -------
+    list[tuple[int, datetime.datetime, datetime.datetime]]
+        A list of repoint IDs and its pointing start and end times.
+    """
+    overlapping = []
+    for i in range(len(repoint_data) - 1):
+        # skip i and i+1 values that are NaN
+        if repoint_data[i]["repoint_end_utc"].lower() == "nan":
+            # This pointing never "started"
+            continue
+        if repoint_data[i + 1]["repoint_end_utc"].lower() == "nan":
+            # Missing repointing end time, so it isn't a complete "pointing" yet.
+            continue
+        pointing_start = datetime.datetime.strptime(
+            repoint_data[i]["repoint_end_utc"], "%Y-%m-%d %H:%M:%S.%f"
+        )
+        # NOTE: We need to make sure we are not double grabbing packets into the
+        #       pointings. The times included are [repointing_start, repointing_end),
+        #       exclusive on the right edge
+        pointing_end = datetime.datetime.strptime(
+            repoint_data[i + 1]["repoint_end_utc"], "%Y-%m-%d %H:%M:%S.%f"
+        )
+        if pointing_end < start_time or pointing_start > end_time:
+            # This repoint ID doesn't overlap the requested time range, so skip it
+            continue
+        overlapping.append(
+            (int(repoint_data[i]["repoint_id"]), pointing_start, pointing_end)
+        )
+    return overlapping
+
+
+def file_hash(path, algo="sha256", chunk_size=8192):
+    """Compute the hex digest of the file at path.
+
+    Parameters
+    ----------
+    path : str
+        The path to the file.
+    algo : str, optional
+        The hashing algorithm to use (default is "sha256").
+    chunk_size : int, optional
+        The size of the chunks to read at a time (default is 8192).
+
+    Returns
+    -------
+    str
+        The hex digest of the file.
+    """
+    h = hashlib.new(algo)
+    with open(path, "rb") as f:
+        while chunk := f.read(chunk_size):
+            h.update(chunk)
+    return h.hexdigest()
+
+
+def format_size(size_bytes):
+    """Convert bytes to human-readable format (MB or GB).
+
+    The precision is set to 4 decimal places for both MB and GB.
+
+    Parameters
+    ----------
+    size_bytes : int
+        The size in bytes to format.
+
+    Returns
+    -------
+    str
+        The size in human-readable format, either in MB or GB.
+    """
+    if size_bytes >= 1e9:
+        return f"{size_bytes / 1e9:.4f} GB"
+    return f"{size_bytes / 1e6:.4f} MB"
+
+
+def compare_files(current_file_path, new_file_path):
+    """Compare two files by hash/size and print the same log format for every check.
+
+    Parameters
+    ----------
+    current_file_path : pathlib.Path
+        The path to the current production file.
+    new_file_path : pathlib.Path
+        The path to the newly queried data file.
+
+    Returns
+    -------
+    bool
+        True if the files are different (new data), False if they are the same.
+    """
+    current_filename = current_file_path.name
+    new_filename = new_file_path.name
+
+    # If file size have changed, then we know the data has changed.
+    # So we can skip the hash check if the sizes are different.
+    current_size = current_file_path.stat().st_size
+    new_size = new_file_path.stat().st_size
+    if current_size != new_size:
+        logger.info("Data has changed")
+        logger.info(f"Prod {current_filename}: (size: {format_size(current_size)})")
+        logger.info(f"New     {new_filename}: (size: {format_size(new_size)})")
+        logger.info("-" * 80)
+        return True
+
+    current_hash = file_hash(current_file_path)
+    new_hash = file_hash(new_file_path)
+
+    if current_hash != new_hash:
+        logger.info("Data has changed")
+        logger.info(
+            f"Prod {current_filename}: (size: {format_size(current_size)}), "
+            f"(hash: {current_hash})"
+        )
+        logger.info(
+            f"New     {new_filename}: (size: {format_size(new_size)}), "
+            f"(hash: {new_hash})"
+        )
+        logger.info("-" * 80)
+        return True
+    else:
+        logger.info(f"Data has not changed for {current_filename}.")
+        logger.info("-" * 80)
+        return False
+
+
+def _latest_l0_minor_version(
+    instrument: str,
+    start_time: datetime.datetime,
+    repointing: Optional[int] = None,
 ) -> int:
-    """Create the filename for the packets file accounting for the versioning.
+    """Determine the next available L0 minor version for this instrument/date.
 
     We need to query the imap_data_access server to see if there have been other
-    files created with the same name, and if so, increment the version number.
+    files created with the same name, and if so, increment the minor version number.
 
     Parameters
     ----------
@@ -548,12 +661,14 @@ def _get_latest_version_file_path(
 
     Returns
     -------
-    pathlib.Path
-        The science file path with the version number included.
+    int
+        The next available minor version number: 1 if no L0 file exists yet
+        in production for this instrument/date/repointing, otherwise the
+        highest existing minor version plus one.
     """
     # See what the latest version is for this file, if any.
-    # If there are no files, we will return the first version (v000.0001).
-    current_files = imap_data_access.query(
+    # If there are no files, we will return the first version (minor version 1).
+    current_l0_files = imap_data_access.query(
         instrument=instrument,
         data_level="l0",
         descriptor="raw",
@@ -562,30 +677,131 @@ def _get_latest_version_file_path(
         end_date=start_time.strftime("%Y%m%d"),
         repointing=repointing,
     )
-    if len(current_files):
+
+    if len(current_l0_files):
         # Get the latest minor version incremented by 1 (this is never reset)
         max_minor_version = (
-            sorted([file["minor_version"] for file in current_files])[-1] + 1
+            sorted([file["minor_version"] for file in current_l0_files])[-1] + 1
         )
     else:
         max_minor_version = 1
 
-    # L0 raw files always have major version 0
-    latest_version = str(Version(0, max_minor_version))
+    return max_minor_version
 
-    logger.info(
-        f"Found [{len(current_files)}] existing l0 files for "
-        f"instrument [{instrument}] with start time {start_time} "
-        f"and repointing {repointing}, setting version to [{latest_version}]"
+
+def _compare_and_write_new_data(
+    instrument: str,
+    start_time: datetime.datetime,
+    content: bytes,
+    repointing: Optional[int] = None,
+) -> Path:
+    """Write freshly queried packet content to disk, comparing against production.
+
+    If no L0 file exists yet in production for this instrument/date/repointing,
+    `content` is written directly as minor version 1. If one exists
+    already, `content` is written to a new, minor-version-bumped file, then
+    compared against the latest production file: if nothing changed,
+    None is returned; if the data changed, the new version's
+    path is returned.
+
+    Parameters
+    ----------
+    instrument : str
+        The instrument the content belongs to.
+    start_time : datetime.datetime
+        The start time used to build the file's path (day or pointing start).
+    content : bytes
+        The freshly queried packet content to write.
+    repointing : int, optional
+        The repointing ID to build the file's path for, by default None.
+
+    Returns
+    -------
+    pathlib.Path or None
+        The path of the newly written file (minor version 1, or a bumped
+        version if the data changed from production), or None if a
+        production file already exists and the freshly queried content
+        matches it.
+    """
+    latest_l0_minor_version = _latest_l0_minor_version(
+        instrument=instrument, start_time=start_time, repointing=repointing
     )
 
-    science_file = imap_data_access.ScienceFilePath.generate_from_inputs(
+    if latest_l0_minor_version == 1:
+        path = imap_data_access.ScienceFilePath.generate_from_inputs(
+            instrument=instrument,
+            data_level="l0",
+            descriptor="raw",
+            start_time=start_time.strftime("%Y%m%d"),
+            repointing=repointing,
+            major_version=1,
+            minor_version=1,
+        ).construct_path()
+
+        logger.info(
+            f"New L0 file. Saving binary data of size {len(content) // 1000} kB "
+            f"to {path}"
+        )
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(content)
+        return path
+
+    # If we get here, this means L0 files already exists and we need to compare
+    # the new queried content and see if it has changed.
+
+    # First download the latest L0 file from production to compare against.
+    prod_l0_file = imap_data_access.query(
+        instrument=instrument,
+        data_level="l0",
+        descriptor="raw",
+        start_date=start_time.strftime("%Y%m%d"),
+        # start_date is >= so we need to add an end_date to restrict the query
+        end_date=start_time.strftime("%Y%m%d"),
+        repointing=repointing,
+        version="latest",
+    )[0]
+    prod_l0_path = imap_data_access.download(prod_l0_file["file_path"])
+
+    new_path = imap_data_access.ScienceFilePath.generate_from_inputs(
         instrument=instrument,
         data_level="l0",
         descriptor="raw",
         start_time=start_time.strftime("%Y%m%d"),
         repointing=repointing,
-        major_version=1,  # L0 files always use major version 1
-        minor_version=max_minor_version,
+        major_version=1,
+        minor_version=latest_l0_minor_version,
+    ).construct_path()
+
+    logger.info(
+        f"Saving binary data of size {len(content) // 1000} kB to {new_path} "
+        f"to compare against existing {prod_l0_path}"
     )
-    return science_file.construct_path()
+
+    new_path.parent.mkdir(parents=True, exist_ok=True)
+    new_path.write_bytes(content)
+
+    data_changed = compare_files(prod_l0_path, new_path)
+    if not data_changed:
+        logger.info(
+            f"Data for {prod_l0_path} hasn't changed, removing duplicate {new_path}"
+        )
+        # Clean up the new file since it is a duplicate of the production file
+        new_path.unlink()
+        prod_l0_path.unlink()
+        return None
+
+    logger.info(f"Data for {prod_l0_path} has changed, keeping new version {new_path}")
+    return new_path
+
+
+def _upload_if_requested(path: Path, upload_to_server: bool) -> None:
+    """Upload path to the SDC data bucket if requested, logging any failure."""
+    if not upload_to_server:
+        return
+    logger.info("Uploading packet file to the server: %s", path)
+    try:
+        imap_data_access.upload(path)
+    except IMAPDataAccessError as e:
+        # We don't want to ruin all subsequent downloads if one fails
+        # during upload, so log the error and continue
+        logger.error(f"Failed to upload {path} to the server: {e}")

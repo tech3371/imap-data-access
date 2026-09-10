@@ -17,6 +17,7 @@ Use
 """
 
 import argparse
+import csv
 import datetime
 import json
 import logging
@@ -33,7 +34,14 @@ from imap_data_access.file_validation import (
 )
 from imap_data_access.io import query, release, spice_query
 from imap_data_access.utils import ReleaseType
-from imap_data_access.webpoda import download_daily_data
+from imap_data_access.webpoda import (
+    download_daily_data,
+    download_repointing_data,
+    get_repoint_file,
+)
+
+# Instruments whose L0 files are split by repointing rather than by day.
+REPOINTING_INSTRUMENTS = {"hi", "lo", "ultra", "glows"}
 
 
 def _download_parser(args: argparse.Namespace):
@@ -353,13 +361,26 @@ def _webpoda_parser(args: argparse.Namespace):
     # Now push that out to 23:59:59
     end_time = datetime.datetime.combine(end_time, datetime.time.max)
 
-    query_by_ert = args.query_mode == "ert"
-    download_daily_data(
-        instrument=args.instrument,
-        start_time=args.start_date,
-        end_time=end_time,
-        query_by_ert=query_by_ert,
-    )
+    if args.instrument in REPOINTING_INSTRUMENTS:
+        repoint_file_path = get_repoint_file(args.start_date, end_time)
+        if repoint_file_path is None:
+            raise ValueError("No repoint files found.")
+        with open(repoint_file_path) as f:
+            repoint_data = list(csv.DictReader(f))
+        download_repointing_data(
+            instrument=args.instrument,
+            start_time=args.start_date,
+            end_time=end_time,
+            repoint_data=repoint_data,
+        )
+        # Clean up the downloaded repoint table
+        repoint_file_path.unlink()
+    else:
+        download_daily_data(
+            instrument=args.instrument,
+            start_time=args.start_date,
+            end_time=end_time,
+        )
     print("Successfully downloaded the data from webpoda.")
 
 
@@ -658,13 +679,12 @@ def main():
         "webpoda",
         help="Raw packet data download per instrument",
         description="Download raw packet data from IMAP webpoda.\n\n"
-        "Two query modes are supported:\n"
-        "  ERT mode (ert):  Queries all data for all APIDs using\n"
-        "                        Earth Received Time (ERT) date range\n"
-        "  SCT mode (sct):    Queries all data for all APIDs with\n"
-        "                        Spacecraft Time (SCT) within the date range\n\n"
-        "Use --query-mode ert for ERT mode (default), or sct for SCT mode\n"
-        ".",
+        "Queries all data for all APIDs with Spacecraft Time (SCT) within\n"
+        "the date range. For hi, lo, ultra, and glows, data is split per\n"
+        "repointing using the repoint table; other instruments are split\n"
+        "per day. In both cases, the freshly downloaded data is compared\n"
+        "against the latest production L0 file, and only new or changed\n"
+        "data is kept.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     parser_webpoda.add_argument(
@@ -686,15 +706,6 @@ def main():
         required=False,
         help="End date for the query in YYYYMMDD format. If not "
         "provided, the query will be for the start date only.",
-    )
-    parser_webpoda.add_argument(
-        "--query-mode",
-        type=str,
-        default="sct",
-        choices=["ert", "sct"],
-        help="Query mode: 'ert' to query by Earth Received Time "
-        "(ERT) or 'sct' to query all data with Spacecraft Time (SCT) "
-        "within the date range.",
     )
     parser_webpoda.set_defaults(func=_webpoda_parser)
 
