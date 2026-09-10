@@ -309,7 +309,7 @@ def download_daily_data(
 ):
     """Download data for the apid and start/end time range from webpoda.
 
-    WebPODA stands for packet on demand access. This function requests the
+    PODA stands for packet on demand access. This function requests the
     IMAP specific API endpoint, so all APIDs must be from the IMAP mission.
 
     Parameters
@@ -394,7 +394,7 @@ def download_repointing_data(
 ):
     """Download data for the instrument and start/end time range from webpoda.
 
-    WebPODA stands for packet on demand access. This function requests the
+    PODA stands for packet on demand access. This function requests the
     IMAP specific API endpoint, so all APIDs must be from the IMAP mission.
 
     repoint_data contains every repointing since launch, so start_time and

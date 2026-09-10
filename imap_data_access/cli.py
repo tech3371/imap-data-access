@@ -40,9 +40,6 @@ from imap_data_access.webpoda import (
     get_repoint_file,
 )
 
-# Instruments whose L0 files are split by repointing rather than by day.
-REPOINTING_INSTRUMENTS = {"hi", "lo", "ultra", "glows"}
-
 
 def _download_parser(args: argparse.Namespace):
     """Download a file from the IMAP SDC.
@@ -361,7 +358,7 @@ def _webpoda_parser(args: argparse.Namespace):
     # Now push that out to 23:59:59
     end_time = datetime.datetime.combine(end_time, datetime.time.max)
 
-    if args.instrument in REPOINTING_INSTRUMENTS:
+    if args.instrument in imap_data_access.REPOINT_DEPENDENT_INSTRUMENTS:
         repoint_file_path = get_repoint_file()
         if repoint_file_path is None:
             raise ValueError("No repoint files found.")
