@@ -406,13 +406,15 @@ def download_daily_data(
             print("-" * 80)
             continue
 
-        path = _compare_and_write_new_data(
+        new_l0_path = _compare_and_write_new_data(
             instrument=instrument,
             start_time=date,
             content=daily_packet_content,
         )
-        if path is not None:
-            _upload_if_requested(path, upload_to_server)
+
+        # If data has changed, upload the new file to the SDC data bucket if requested
+        if new_l0_path is not None:
+            _upload_if_requested(new_l0_path, upload_to_server)
 
     logger.info(f"Finished downloading data for instrument [{instrument}]")
 
@@ -582,14 +584,16 @@ def download_repointing_data(
             print("-" * 80)
             continue
 
-        path = _compare_and_write_new_data(
+        new_l0_path = _compare_and_write_new_data(
             instrument=instrument,
             start_time=pointing_start,
             content=pointing_packet_content,
             repointing=int(current_repoint["repoint_id"]),
         )
-        if path is not None:
-            _upload_if_requested(path, upload_to_server)
+
+        # If data has changed, upload the new file to the SDC data bucket if requested
+        if new_l0_path is not None:
+            _upload_if_requested(new_l0_path, upload_to_server)
 
     logger.info(f"Finished downloading data for instrument [{instrument}]")
 
@@ -776,7 +780,7 @@ def _compare_and_write_new_data(
     )
 
     if latest_l0_minor_version == 1:
-        path = imap_data_access.ScienceFilePath.generate_from_inputs(
+        new_l0_path = imap_data_access.ScienceFilePath.generate_from_inputs(
             instrument=instrument,
             data_level="l0",
             descriptor="raw",
@@ -788,11 +792,11 @@ def _compare_and_write_new_data(
 
         logger.info(
             f"New L0 file. Saving binary data of size {len(content) // 1000} kB "
-            f"to {path}"
+            f"to {new_l0_path} as minor version 1"
         )
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_bytes(content)
-        return path
+        new_l0_path.parent.mkdir(parents=True, exist_ok=True)
+        new_l0_path.write_bytes(content)
+        return new_l0_path
 
     # If we get here, this means L0 files already exists and we need to compare
     # the new queried content and see if it has changed.
@@ -810,7 +814,7 @@ def _compare_and_write_new_data(
     )[0]
     prod_l0_path = imap_data_access.download(prod_l0_file["file_path"])
 
-    new_path = imap_data_access.ScienceFilePath.generate_from_inputs(
+    new_l0_path = imap_data_access.ScienceFilePath.generate_from_inputs(
         instrument=instrument,
         data_level="l0",
         descriptor="raw",
@@ -821,22 +825,24 @@ def _compare_and_write_new_data(
     ).construct_path()
 
     logger.info(
-        f"Saving binary data of size {len(content) // 1000} kB to {new_path} "
+        f"Saving binary data of size {len(content) // 1000} kB to {new_l0_path} "
         f"to compare against existing {prod_l0_path}"
     )
 
-    new_path.parent.mkdir(parents=True, exist_ok=True)
-    new_path.write_bytes(content)
+    new_l0_path.parent.mkdir(parents=True, exist_ok=True)
+    new_l0_path.write_bytes(content)
 
-    data_changed = compare_files(prod_l0_path, new_path)
+    data_changed = compare_files(prod_l0_path, new_l0_path)
     if not data_changed:
         logger.info(
-            f"Data for {prod_l0_path} hasn't changed, {new_path} is a duplicate"
+            f"Data for {prod_l0_path} hasn't changed, {new_l0_path} is a duplicate"
         )
         return None
 
-    logger.info(f"Data for {prod_l0_path} has changed, keeping new version {new_path}")
-    return new_path
+    logger.info(
+        f"Data for {prod_l0_path} has changed, keeping new version {new_l0_path}"
+    )
+    return new_l0_path
 
 
 def _upload_if_requested(path: Path, upload_to_server: bool) -> None:

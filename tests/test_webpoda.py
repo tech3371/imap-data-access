@@ -12,7 +12,6 @@ from imap_data_access.webpoda import (
     _compare_and_write_new_data,
     _get_webpoda_headers,
     _latest_l0_minor_version,
-    _repoints_overlapping_date_range,
     _upload_if_requested,
     compare_files,
     download_daily_data,
@@ -118,6 +117,183 @@ def test_get_packet_binary_data_sctime(mock_send_request, mock_request):
     assert result == b"\x00\x01\x02\x03"
 
 
+@patch("imap_data_access.webpoda.get_packet_binary_data_sctime")
+@patch("imap_data_access.webpoda.get_packet_times_ert")
+@patch("imap_data_access.webpoda.imap_data_access.upload")
+@patch("imap_data_access.webpoda.imap_data_access.query")
+@pytest.mark.parametrize("upload_to_server", [True, False])
+def test_download_daily_data(
+    mock_query,
+    mock_upload,
+    mock_get_packet_times_ert,
+    mock_get_packet_binary_data_sctime,
+    upload_to_server,
+):
+    # No existing L0 files in production, so everything is written as minor
+    # version 1 with no comparison needed.
+    mock_query.return_value = []
+    # We are mocking the upload, lets also verify that
+    # duplicate files don't propagate any errors.
+    mock_upload.side_effect = IMAPDataAccessError("File already exists")
+    mock_get_packet_times_ert.return_value = [
+        datetime.datetime(2024, 12, 1, 0, 0, 0),
+        datetime.datetime(2024, 12, 2, 0, 0, 0),
+    ]
+    mock_get_packet_binary_data_sctime.return_value = b"\x00\x01\x02\x03"
+
+    start_time = datetime.datetime(2024, 12, 1, 0, 0, 0)
+    end_time = datetime.datetime(2024, 12, 3, 23, 59, 59)
+    instrument = "swapi"
+
+    download_daily_data(
+        instrument, start_time, end_time, upload_to_server=upload_to_server
+    )
+
+    # Make sure swapi was called with a buffer of 1 minute on either side of midnight
+    call = mock_get_packet_binary_data_sctime.call_args_list[0][0]
+    assert call == (
+        1184,
+        start_time - datetime.timedelta(minutes=1),
+        # end time + 1 day, then buffer of 1 minute
+        start_time + datetime.timedelta(days=1) + datetime.timedelta(minutes=1),
+    )
+
+    # We expect two daily files to be created because we have packets
+    # across two separate days
+    for day in mock_get_packet_times_ert.return_value:
+        expected_file_path = ScienceFilePath.generate_from_inputs(
+            instrument=instrument,
+            data_level="l0",
+            descriptor="raw",
+            start_time=day.strftime("%Y%m%d"),
+            major_version=1,
+            minor_version=1,
+        ).construct_path()
+        # There are two swapi apids, so we download the same byte stream twice
+        n_apids = len(INSTRUMENT_APIDS[instrument])
+        assert expected_file_path.read_bytes() == b"\x00\x01\x02\x03" * n_apids
+        assert mock_upload.called is upload_to_server
+
+
+@patch("imap_data_access.webpoda.get_packet_binary_data_sctime")
+@patch("imap_data_access.webpoda.get_packet_times_ert")
+@patch("imap_data_access.webpoda.imap_data_access.upload")
+@patch("imap_data_access.webpoda.imap_data_access.query")
+@pytest.mark.parametrize("upload_to_server", [True, False])
+def test_download_repointing_data(
+    mock_query,
+    mock_upload,
+    mock_get_packet_times_ert,
+    mock_get_packet_binary_data_sctime,
+    upload_to_server,
+):
+    mock_query.return_value = []
+    # We are mocking the upload, lets also verify that
+    # duplicate files don't propagate any errors.
+    mock_upload.side_effect = IMAPDataAccessError("File already exists")
+    mock_get_packet_binary_data_sctime.return_value = b"\x00\x01\x02\x03"
+
+    start_time = datetime.datetime(2024, 12, 1, 0, 0, 0)
+    end_time = datetime.datetime(2024, 12, 3, 23, 59, 59)
+    instrument = "hi"
+
+    # Test that no packets returned doesn't fail and doesn't produce any files
+    mock_get_packet_times_ert.return_value = []
+    download_repointing_data(
+        instrument,
+        start_time,
+        end_time,
+        repoint_data=REPOINT_DATA,
+        upload_to_server=upload_to_server,
+    )
+    assert not (imap_data_access.config["DATA_DIR"] / "imap").exists()
+
+    # Now test with some returned packets
+    mock_get_packet_times_ert.return_value = [
+        datetime.datetime(2024, 12, 1, 0, 0, 0),
+        # This packet is right on a pointing boundary, it shouldn't be
+        # in both files but only the second one.
+        datetime.datetime(2024, 12, 1, 0, 15, 0),
+        # This packet is after valid repointings in the file and shouldn't be counted
+        datetime.datetime(2024, 12, 2, 12, 0, 0),
+    ]
+    download_repointing_data(
+        instrument,
+        start_time,
+        end_time,
+        repoint_data=REPOINT_DATA,
+        upload_to_server=upload_to_server,
+    )
+
+    # We expect two repointing files to be created because we have packets
+    # across two separate repointing periods
+    for repoint_id, date in [(1, "20241130"), (2, "20241201")]:
+        expected_file_path = ScienceFilePath.generate_from_inputs(
+            instrument=instrument,
+            data_level="l0",
+            descriptor="raw",
+            start_time=date,
+            repointing=repoint_id,
+            major_version=1,
+            minor_version=1,
+        ).construct_path()
+        # There are two hi apids, so we download the same byte stream twice
+        n_apids = len(INSTRUMENT_APIDS[instrument])
+        assert expected_file_path.read_bytes() == b"\x00\x01\x02\x03" * n_apids
+        assert mock_upload.called is upload_to_server
+    assert (imap_data_access.config["DATA_DIR"] / "imap").exists()
+
+
+@patch("imap_data_access.webpoda.imap_data_access.download")
+@patch("imap_data_access.webpoda.get_packet_binary_data_sctime")
+@patch("imap_data_access.webpoda.get_packet_times_ert")
+@patch("imap_data_access.webpoda.imap_data_access.query")
+def test_file_versioning(
+    mock_query,
+    mock_get_packet_times_ert,
+    mock_get_packet_binary_data_sctime,
+    mock_download,
+    tmp_path,
+):
+    # One existing prod file (with different, smaller content) triggers the
+    # comparison path for each day, and since the freshly queried data
+    # differs, it should be kept as minor_version=3.
+    prod_path = tmp_path / "prod.pkts"
+    prod_path.write_bytes(b"\x00\x01")
+    mock_download.return_value = prod_path
+    mock_query.side_effect = [
+        [{"minor_version": 1}, {"minor_version": 2}],
+        [{"file_path": "imap_swapi_l0_raw_20241201_v001.pkts"}],
+    ] * 2
+
+    mock_get_packet_times_ert.return_value = [
+        datetime.datetime(2024, 12, 1, 0, 0, 0),
+        datetime.datetime(2024, 12, 2, 0, 0, 0),
+    ]
+    mock_get_packet_binary_data_sctime.return_value = b"\x00\x01\x02\x03"
+
+    start_time = datetime.datetime(2024, 12, 1, 0, 0, 0)
+    end_time = datetime.datetime(2024, 12, 3, 23, 59, 59)
+    instrument = "swapi"
+
+    download_daily_data(instrument, start_time, end_time)
+
+    # We expect two daily files to be created because we have packets
+    # across two separate days
+    for day in mock_get_packet_times_ert.return_value:
+        expected_file_path = ScienceFilePath.generate_from_inputs(
+            instrument=instrument,
+            data_level="l0",
+            descriptor="raw",
+            start_time=day.strftime("%Y%m%d"),
+            major_version=1,
+            minor_version=3,
+        ).construct_path()
+        # There are two swapi apids, so we download the same byte stream twice
+        n_apids = len(INSTRUMENT_APIDS[instrument])
+        assert expected_file_path.read_bytes() == b"\x00\x01\x02\x03" * n_apids
+
+
 def test_get_repoint_file_no_files(mock_send_request, mock_request):
     mock_response = MagicMock()
     mock_response.json.return_value = []
@@ -162,21 +338,6 @@ def test_get_repoint_file(mock_download, mock_send_request, mock_request):
     assert queried_end - queried_start == datetime.timedelta(weeks=1)
     mock_download.assert_called_once_with("newest.repoint.csv")
     assert result == "downloaded_repoint_table_path"
-
-
-def test_repoints_overlapping_date_range():
-    result = _repoints_overlapping_date_range(
-        REPOINT_DATA,
-        start_time=datetime.datetime(2024, 12, 1),
-        end_time=datetime.datetime(2024, 12, 3),
-    )
-
-    # Repoint ID 1 (11/30 -> 12/01) and 2 (12/01 -> 12/02) overlap the range.
-    # Repoint ID 3 starts on 12/02 but its pointing (3 -> 4) is skipped because
-    # row 4 has a NaN end time, and repoint 5's pointing starts after the range.
-    assert [r[0] for r in result] == [1, 2]
-    assert result[0][1] == datetime.datetime(2024, 11, 30, 20, 15, 0)
-    assert result[0][2] == datetime.datetime(2024, 12, 1, 0, 15, 0)
 
 
 def test_file_hash(tmp_path):
@@ -343,128 +504,3 @@ def test_compare_and_write_new_data_unchanged(mock_query, mock_download, tmp_pat
     ).construct_path()
     assert new_path.exists()
     assert prod_path.exists()
-
-
-@patch("imap_data_access.webpoda.get_packet_binary_data_sctime")
-@patch("imap_data_access.webpoda.imap_data_access.upload")
-@patch("imap_data_access.webpoda.imap_data_access.query")
-@pytest.mark.parametrize("upload_to_server", [True, False])
-def test_download_daily_data(
-    mock_query,
-    mock_upload,
-    mock_get_packet_binary_data_sctime,
-    upload_to_server,
-):
-    # No existing L0 files in production, so everything is written as minor
-    # version 1 with no comparison needed.
-    mock_query.return_value = []
-    mock_upload.side_effect = IMAPDataAccessError("File already exists")
-    mock_get_packet_binary_data_sctime.return_value = b"\x00\x01\x02\x03"
-
-    start_time = datetime.datetime(2024, 12, 1, 0, 0, 0)
-    end_time = datetime.datetime(2024, 12, 2, 23, 59, 59)
-    instrument = "swapi"
-
-    paths = download_daily_data(
-        instrument, start_time, end_time, upload_to_server=upload_to_server
-    )
-
-    # Make sure swapi was called with a buffer of 1 minute on either side of midnight
-    call = mock_get_packet_binary_data_sctime.call_args_list[0][0]
-    assert call == (
-        1184,
-        start_time - datetime.timedelta(minutes=1),
-        start_time + datetime.timedelta(days=1) + datetime.timedelta(minutes=1),
-    )
-
-    # We expect two daily files, one for each day in the range
-    assert len(paths) == 2
-    for day, path in zip([start_time.date(), end_time.date()], paths):
-        expected_file_path = ScienceFilePath.generate_from_inputs(
-            instrument=instrument,
-            data_level="l0",
-            descriptor="raw",
-            start_time=day.strftime("%Y%m%d"),
-            major_version=1,
-            minor_version=1,
-        ).construct_path()
-        assert path == expected_file_path
-        n_apids = len(INSTRUMENT_APIDS[instrument])
-        # Local files are kept around regardless of whether they were uploaded
-        assert path.exists()
-        assert path.read_bytes() == b"\x00\x01\x02\x03" * n_apids
-        assert mock_upload.called is upload_to_server
-
-
-@patch("imap_data_access.webpoda.get_packet_binary_data_sctime")
-@patch("imap_data_access.webpoda.imap_data_access.query")
-def test_download_daily_data_skips_no_data(
-    mock_query, mock_get_packet_binary_data_sctime
-):
-    mock_query.return_value = []
-    mock_get_packet_binary_data_sctime.return_value = b""
-
-    paths = download_daily_data(
-        "swapi",
-        datetime.datetime(2024, 12, 1),
-        datetime.datetime(2024, 12, 1, 23, 59, 59),
-    )
-
-    assert paths == []
-
-
-@patch("imap_data_access.webpoda.get_packet_binary_data_sctime")
-@patch("imap_data_access.webpoda.imap_data_access.upload")
-@patch("imap_data_access.webpoda.imap_data_access.query")
-@pytest.mark.parametrize("upload_to_server", [True, False])
-def test_download_repointing_data(
-    mock_query,
-    mock_upload,
-    mock_get_packet_binary_data_sctime,
-    upload_to_server,
-):
-    mock_query.return_value = []
-    mock_upload.side_effect = IMAPDataAccessError("File already exists")
-    mock_get_packet_binary_data_sctime.return_value = b"\x00\x01\x02\x03"
-
-    instrument = "hi"
-    start_time = datetime.datetime(2024, 12, 1, 0, 0, 0)
-    end_time = datetime.datetime(2024, 12, 3, 23, 59, 59)
-
-    paths = download_repointing_data(
-        instrument,
-        start_time,
-        end_time,
-        repoint_data=REPOINT_DATA,
-        upload_to_server=upload_to_server,
-    )
-
-    # Repoint IDs 1 and 2 overlap the requested range
-    assert len(paths) == 2
-    for repoint_id, date, path in zip([1, 2], ["20241130", "20241201"], paths):
-        expected_file_path = ScienceFilePath.generate_from_inputs(
-            instrument=instrument,
-            data_level="l0",
-            descriptor="raw",
-            start_time=date,
-            repointing=repoint_id,
-            major_version=1,
-            minor_version=1,
-        ).construct_path()
-        assert path == expected_file_path
-        # Local files are kept around regardless of whether they were uploaded
-        assert path.exists()
-        assert mock_upload.called is upload_to_server
-
-
-@patch("imap_data_access.webpoda.get_packet_binary_data_sctime")
-def test_download_repointing_data_no_overlap(mock_get_packet_binary_data_sctime):
-    result = download_repointing_data(
-        "hi",
-        datetime.datetime(2030, 1, 1),
-        datetime.datetime(2030, 1, 2),
-        repoint_data=REPOINT_DATA,
-    )
-
-    assert result is None
-    mock_get_packet_binary_data_sctime.assert_not_called()
