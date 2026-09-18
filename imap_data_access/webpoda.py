@@ -268,18 +268,27 @@ def get_repoint_file() -> Optional[Path]:
     The repoint file is a cumulative data set (each newly ingested file
     contains every repointing since launch), so this always looks at
     ingestion date rather than any particular spacecraft data range: we only
-    need to look back over the last week of ingests to find the latest and
-    greatest table.
+    need to look back over the last two weeks of ingests to find the latest
+    and greatest table.
 
     Returns
     -------
     pathlib.Path or None
         The path to the downloaded repoint table file, or None if no repoint
-        files have been ingested in the last week.
+        files have been ingested in the last two weeks.
     """
     end_date = datetime.datetime.now()
-    start_date = end_date - datetime.timedelta(weeks=1)
+    start_date = end_date - datetime.timedelta(weeks=2)
+    # The endpoint floors end_ingest_date to 00:00:00 UTC that day, rather
+    # than the actual current time, so a file ingested today after midnight
+    # (e.g. received at 2026-09-18T15:35:09 UTC) would be missed by a query
+    # for "last week through 2026-09-18T00:00:00". Push the end date
+    # forward a day so today's ingestions are always included. This isn't
+    # critical for the data-gap-filling task, but it matters when running
+    # the `webpoda` command locally for debugging.
+    end_date = end_date + datetime.timedelta(days=1)
     url = f"{imap_data_access.config['DATA_ACCESS_URL']}/repoint-table"
+    logger.debug(f"Query repoint files with ingestion data: {start_date} - {end_date}")
     params = {
         "start_ingest_date": start_date.strftime("%Y%m%d"),
         "end_ingest_date": end_date.strftime("%Y%m%d"),
