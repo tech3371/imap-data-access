@@ -318,7 +318,7 @@ def download_daily_data(
     instrument: str,
     start_time: datetime.datetime,
     end_time: datetime.datetime,
-    upload_to_server=False,
+    upload_to_sdc=False,
     query_by_ert=True,
 ):
     """Download data for the apid and start/end time range from webpoda.
@@ -331,7 +331,7 @@ def download_daily_data(
     empty files are created). If an L0 file already exists, the freshly queried
     data is compared against the latest production file via
     _compare_and_write_new_data: if the data changed, a new minor version is
-    written (and uploaded, if upload_to_server is True); if not, nothing is kept.
+    written (and uploaded, if upload_to_sdc is True); if not, nothing is kept.
 
     Parameters
     ----------
@@ -343,7 +343,7 @@ def download_daily_data(
     end_time : datetime.datetime
         The end time of the query. If query_by_ert is True, this uses Earth Received
         Time (ERT). If query_by_ert is False, this uses Spacecraft Time (SCT).
-    upload_to_server : bool, optional
+    upload_to_sdc : bool, optional
         If True, upload the data to the SDC data bucket, by default False
     query_by_ert : bool, optional
         If True, queries all data for all APIDs using the Earth Received Time (ERT)
@@ -423,7 +423,7 @@ def download_daily_data(
 
         # If data has changed, upload the new file to the SDC data bucket if requested
         if new_l0_path is not None:
-            _upload_if_requested(new_l0_path, upload_to_server)
+            _upload_if_requested(new_l0_path, upload_to_sdc)
 
     logger.info(f"Finished downloading data for instrument [{instrument}]")
 
@@ -434,7 +434,7 @@ def download_repointing_data(
     start_time: datetime.datetime,
     end_time: datetime.datetime,
     repoint_data: list,
-    upload_to_server=False,
+    upload_to_sdc=False,
     query_by_ert=True,
 ):
     """Download data for the instrument and start/end time range from webpoda.
@@ -447,7 +447,7 @@ def download_repointing_data(
     no empty files are created). If an L0 file already exists, the freshly queried
     data is compared against the latest production file via
     _compare_and_write_new_data: if the data changed, a new minor version is
-    written (and uploaded, if upload_to_server is True); if not, nothing is kept.
+    written (and uploaded, if upload_to_sdc is True); if not, nothing is kept.
 
     Parameters
     ----------
@@ -473,7 +473,7 @@ def download_repointing_data(
             repoint_start_utc	str
             repoint_end_utc	str
             repoint_id	UINT
-    upload_to_server : bool, optional
+    upload_to_sdc : bool, optional
         If True, upload the data to the SDC data bucket, by default False
     query_by_ert : bool, optional
         If True, uses the Earth Received Time (ERT) date range to determine
@@ -602,7 +602,7 @@ def download_repointing_data(
 
         # If data has changed, upload the new file to the SDC data bucket if requested
         if new_l0_path is not None:
-            _upload_if_requested(new_l0_path, upload_to_server)
+            _upload_if_requested(new_l0_path, upload_to_sdc)
 
     logger.info(f"Finished downloading data for instrument [{instrument}]")
 
@@ -854,9 +854,9 @@ def _compare_and_write_new_data(
     return new_l0_path
 
 
-def _upload_if_requested(path: Path, upload_to_server: bool) -> None:
+def _upload_if_requested(path: Path, upload_to_sdc: bool) -> None:
     """Upload path to the SDC data bucket if requested, logging any failure."""
-    if not upload_to_server:
+    if not upload_to_sdc:
         return
     logger.info("Uploading packet file to the server: %s", path)
     try:

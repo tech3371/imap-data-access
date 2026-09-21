@@ -121,13 +121,13 @@ def test_get_packet_binary_data_sctime(mock_send_request, mock_request):
 @patch("imap_data_access.webpoda.get_packet_times_ert")
 @patch("imap_data_access.webpoda.imap_data_access.upload")
 @patch("imap_data_access.webpoda.imap_data_access.query")
-@pytest.mark.parametrize("upload_to_server", [True, False])
+@pytest.mark.parametrize("upload_to_sdc", [True, False])
 def test_download_daily_data(
     mock_query,
     mock_upload,
     mock_get_packet_times_ert,
     mock_get_packet_binary_data_sctime,
-    upload_to_server,
+    upload_to_sdc,
 ):
     # No existing L0 files in production, so everything is written as minor
     # version 1 with no comparison needed.
@@ -145,9 +145,7 @@ def test_download_daily_data(
     end_time = datetime.datetime(2024, 12, 3, 23, 59, 59)
     instrument = "swapi"
 
-    download_daily_data(
-        instrument, start_time, end_time, upload_to_server=upload_to_server
-    )
+    download_daily_data(instrument, start_time, end_time, upload_to_sdc=upload_to_sdc)
 
     # Make sure swapi was called with a buffer of 1 minute on either side of midnight
     call = mock_get_packet_binary_data_sctime.call_args_list[0][0]
@@ -172,20 +170,20 @@ def test_download_daily_data(
         # There are two swapi apids, so we download the same byte stream twice
         n_apids = len(INSTRUMENT_APIDS[instrument])
         assert expected_file_path.read_bytes() == b"\x00\x01\x02\x03" * n_apids
-        assert mock_upload.called is upload_to_server
+        assert mock_upload.called is upload_to_sdc
 
 
 @patch("imap_data_access.webpoda.get_packet_binary_data_sctime")
 @patch("imap_data_access.webpoda.get_packet_times_ert")
 @patch("imap_data_access.webpoda.imap_data_access.upload")
 @patch("imap_data_access.webpoda.imap_data_access.query")
-@pytest.mark.parametrize("upload_to_server", [True, False])
+@pytest.mark.parametrize("upload_to_sdc", [True, False])
 def test_download_repointing_data(
     mock_query,
     mock_upload,
     mock_get_packet_times_ert,
     mock_get_packet_binary_data_sctime,
-    upload_to_server,
+    upload_to_sdc,
 ):
     mock_query.return_value = []
     # We are mocking the upload, lets also verify that
@@ -204,7 +202,7 @@ def test_download_repointing_data(
         start_time,
         end_time,
         repoint_data=REPOINT_DATA,
-        upload_to_server=upload_to_server,
+        upload_to_sdc=upload_to_sdc,
     )
     assert not (imap_data_access.config["DATA_DIR"] / "imap").exists()
 
@@ -222,7 +220,7 @@ def test_download_repointing_data(
         start_time,
         end_time,
         repoint_data=REPOINT_DATA,
-        upload_to_server=upload_to_server,
+        upload_to_sdc=upload_to_sdc,
     )
 
     # We expect two repointing files to be created because we have packets
@@ -240,7 +238,7 @@ def test_download_repointing_data(
         # There are two hi apids, so we download the same byte stream twice
         n_apids = len(INSTRUMENT_APIDS[instrument])
         assert expected_file_path.read_bytes() == b"\x00\x01\x02\x03" * n_apids
-        assert mock_upload.called is upload_to_server
+        assert mock_upload.called is upload_to_sdc
     assert (imap_data_access.config["DATA_DIR"] / "imap").exists()
 
 
@@ -320,8 +318,9 @@ def test_get_repoint_file(mock_download, mock_send_request, mock_request):
     result = get_repoint_file()
     after_call = datetime.datetime.now()
 
-    # The ingestion window queried is always "the last week", regardless of
-    # any spacecraft data range being downloaded.
+    # The ingestion window queried is always "the last two weeks", regardless
+    # of any spacecraft data range being downloaded. The end date is pushed
+    # a day past "now" since the endpoint floors end_ingest_date to midnight.
     assert mock_request.call_count == 1
     call_args = mock_request.call_args
     assert call_args[0] == (
@@ -334,8 +333,12 @@ def test_get_repoint_file(mock_download, mock_send_request, mock_request):
     queried_start = datetime.datetime.strptime(
         call_args.kwargs["params"]["start_ingest_date"], "%Y%m%d"
     )
-    assert before_call.date() <= queried_end.date() <= after_call.date()
-    assert queried_end - queried_start == datetime.timedelta(weeks=1)
+    assert (
+        before_call.date() + datetime.timedelta(days=1)
+        <= queried_end.date()
+        <= after_call.date() + datetime.timedelta(days=1)
+    )
+    assert queried_end - queried_start == datetime.timedelta(weeks=2, days=1)
     mock_download.assert_called_once_with("newest.repoint.csv")
     assert result == "downloaded_repoint_table_path"
 
@@ -399,10 +402,10 @@ def test_upload_if_requested(mock_upload, tmp_path):
     path = tmp_path / "data.pkts"
     path.write_bytes(b"data")
 
-    _upload_if_requested(path, upload_to_server=False)
+    _upload_if_requested(path, upload_to_sdc=False)
     mock_upload.assert_not_called()
 
-    _upload_if_requested(path, upload_to_server=True)
+    _upload_if_requested(path, upload_to_sdc=True)
     mock_upload.assert_called_once_with(path)
 
 
@@ -413,7 +416,7 @@ def test_upload_if_requested_handles_failure(mock_upload, tmp_path):
     mock_upload.side_effect = IMAPDataAccessError("File already exists")
 
     # Should not raise, just log the error
-    _upload_if_requested(path, upload_to_server=True)
+    _upload_if_requested(path, upload_to_sdc=True)
 
 
 @patch("imap_data_access.webpoda.imap_data_access.query")

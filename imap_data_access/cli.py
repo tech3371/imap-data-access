@@ -371,6 +371,7 @@ def _webpoda_parser(args: argparse.Namespace):
             end_time=end_time,
             repoint_data=repoint_data,
             query_by_ert=query_by_ert,
+            upload_to_sdc=args.upload_to_sdc,
         )
     else:
         download_daily_data(
@@ -378,6 +379,7 @@ def _webpoda_parser(args: argparse.Namespace):
             start_time=args.start_date,
             end_time=end_time,
             query_by_ert=query_by_ert,
+            upload_to_sdc=args.upload_to_sdc,
         )
     print("Successfully downloaded the data from webpoda.")
 
@@ -714,6 +716,12 @@ def main():
         help="Query mode: 'ert' to query by Earth Received Time "
         "(ERT, default) or 'sct' to query all data with Spacecraft Time "
         "(SCT) within the date range.",
+    )
+    parser_webpoda.add_argument(
+        "--upload-to-sdc",
+        action="store_true",
+        help="Upload any new or changed data to the IMAP SDC. "
+        "By default, data is only downloaded locally.",
     )
     parser_webpoda.set_defaults(func=_webpoda_parser)
 
