@@ -563,7 +563,7 @@ def download_repointing_data(
                     f"didn't contain any packets, skipping"
                 )
                 continue
-        elif pointing_end < start_time or pointing_start > end_time:
+        elif pointing_end <= start_time or pointing_start > end_time:
             # Query by SCT - only consider pointings overlapping [start_time, end_time]
             logger.debug(
                 f"Pointing start {pointing_start} and end {pointing_end} "
@@ -701,53 +701,25 @@ def compare_files(current_file_path, new_file_path):
         return False
 
 
-def _latest_l0_minor_version(
-    instrument: str,
-    start_time: datetime.datetime,
-    repointing: Optional[int] = None,
-) -> int:
-    """Determine the next available L0 minor version for this instrument/date.
-
-    We need to query the imap_data_access server to see if there have been other
-    files created with the same name, and if so, increment the minor version number.
+def _latest_l0_minor_version(current_l0_files: list) -> int:
+    """Determine the next available L0 minor version given the existing files.
 
     Parameters
     ----------
-    instrument : str
-        The instrument name
-    start_time : datetime.datetime
-        The start time of the data to check for the latest version.
-    repointing : int, optional
-        The repointing ID to check for the latest version, by default None.
+    current_l0_files : list
+        The L0 files already in production for this instrument/date/repointing,
+        as returned by imap_data_access.query. May be empty.
 
     Returns
     -------
     int
-        The next available minor version number: 1 if no L0 file exists yet
-        in production for this instrument/date/repointing, otherwise the
-        highest existing minor version plus one.
+        The next available minor version number: 1 if current_l0_files is
+        empty, otherwise the highest existing minor version plus one.
     """
-    # See what the latest version is for this file, if any.
-    # If there are no files, we will return the first version (minor version 1).
-    current_l0_files = imap_data_access.query(
-        instrument=instrument,
-        data_level="l0",
-        descriptor="raw",
-        start_date=start_time.strftime("%Y%m%d"),
-        # start_date is >= so we need to add an end_date to restrict the query
-        end_date=start_time.strftime("%Y%m%d"),
-        repointing=repointing,
-    )
-
-    if len(current_l0_files):
-        # Get the latest minor version incremented by 1 (this is never reset)
-        max_minor_version = (
-            sorted([file["minor_version"] for file in current_l0_files])[-1] + 1
-        )
-    else:
-        max_minor_version = 1
-
-    return max_minor_version
+    if not current_l0_files:
+        return 1
+    # Get the latest minor version incremented by 1 (this is never reset)
+    return max(file["minor_version"] for file in current_l0_files) + 1
 
 
 def _compare_and_write_new_data(
@@ -755,7 +727,7 @@ def _compare_and_write_new_data(
     start_time: datetime.datetime,
     content: bytes,
     repointing: Optional[int] = None,
-) -> Path:
+) -> Optional[Path]:
     """Write freshly queried packet content to disk, comparing against production.
 
     If no L0 file exists yet in production for this instrument/date/repointing,
@@ -784,11 +756,21 @@ def _compare_and_write_new_data(
         production file already exists and the freshly queried content
         matches it.
     """
-    latest_l0_minor_version = _latest_l0_minor_version(
-        instrument=instrument, start_time=start_time, repointing=repointing
+    # See if any L0 files already exist for this instrument/date/repointing.
+    # We branch on this explicitly rather than inferring it from the next
+    # minor version, since an existing file at minor version 0 would also
+    # produce a next version of 1.
+    current_l0_files = imap_data_access.query(
+        instrument=instrument,
+        data_level="l0",
+        descriptor="raw",
+        start_date=start_time.strftime("%Y%m%d"),
+        # start_date is >= so we need to add an end_date to restrict the query
+        end_date=start_time.strftime("%Y%m%d"),
+        repointing=repointing,
     )
 
-    if latest_l0_minor_version == 1:
+    if not current_l0_files:
         new_l0_path = imap_data_access.ScienceFilePath.generate_from_inputs(
             instrument=instrument,
             data_level="l0",
@@ -809,19 +791,12 @@ def _compare_and_write_new_data(
 
     # If we get here, this means L0 files already exists and we need to compare
     # the new queried content and see if it has changed.
+    latest_l0_minor_version = _latest_l0_minor_version(current_l0_files)
 
-    # First download the latest L0 file from production to compare against.
-    prod_l0_file = imap_data_access.query(
-        instrument=instrument,
-        data_level="l0",
-        descriptor="raw",
-        start_date=start_time.strftime("%Y%m%d"),
-        # start_date is >= so we need to add an end_date to restrict the query
-        end_date=start_time.strftime("%Y%m%d"),
-        repointing=repointing,
-        version="latest",
-    )[0]
-    prod_l0_path = imap_data_access.download(prod_l0_file["file_path"])
+    # The highest minor version is always the latest, so download it to
+    # compare against.
+    latest_l0_file = max(current_l0_files, key=lambda file: file["minor_version"])
+    prod_l0_path = imap_data_access.download(latest_l0_file["file_path"])
 
     new_l0_path = imap_data_access.ScienceFilePath.generate_from_inputs(
         instrument=instrument,

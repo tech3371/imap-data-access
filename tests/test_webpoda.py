@@ -259,10 +259,10 @@ def test_file_versioning(
     prod_path = tmp_path / "prod.pkts"
     prod_path.write_bytes(b"\x00\x01")
     mock_download.return_value = prod_path
-    mock_query.side_effect = [
-        [{"minor_version": 1}, {"minor_version": 2}],
-        [{"file_path": "imap_swapi_l0_raw_20241201_v001.pkts"}],
-    ] * 2
+    mock_query.return_value = [
+        {"minor_version": 1, "file_path": "imap_swapi_l0_raw_20241201_v001.pkts"},
+        {"minor_version": 2, "file_path": "imap_swapi_l0_raw_20241201_v002.pkts"},
+    ]
 
     mock_get_packet_times_ert.return_value = [
         datetime.datetime(2024, 12, 1, 0, 0, 0),
@@ -379,20 +379,14 @@ def test_compare_files_unchanged(tmp_path):
     assert compare_files(current, new) is False
 
 
-@patch("imap_data_access.webpoda.imap_data_access.query")
-def test_latest_l0_minor_version_no_existing_files(mock_query):
-    mock_query.return_value = []
-
-    result = _latest_l0_minor_version("swapi", datetime.datetime(2024, 12, 1))
+def test_latest_l0_minor_version_no_existing_files():
+    result = _latest_l0_minor_version([])
 
     assert result == 1
 
 
-@patch("imap_data_access.webpoda.imap_data_access.query")
-def test_latest_l0_minor_version_existing_files(mock_query):
-    mock_query.return_value = [{"minor_version": 1}, {"minor_version": 2}]
-
-    result = _latest_l0_minor_version("swapi", datetime.datetime(2024, 12, 1))
+def test_latest_l0_minor_version_existing_files():
+    result = _latest_l0_minor_version([{"minor_version": 1}, {"minor_version": 2}])
 
     assert result == 3
 
@@ -443,6 +437,40 @@ def test_compare_and_write_new_data_no_existing_file(mock_query):
 
 @patch("imap_data_access.webpoda.imap_data_access.download")
 @patch("imap_data_access.webpoda.imap_data_access.query")
+def test_compare_and_write_new_data_existing_minor_version_zero(
+    mock_query, mock_download, tmp_path
+):
+    # A file at minor_version=0 also produces a next version of 1, so this
+    # must still go through the comparison path instead of being treated as
+    # if no L0 file exists yet.
+    instrument = "swapi"
+    start_time = datetime.datetime(2024, 12, 1)
+
+    prod_path = tmp_path / "prod.pkts"
+    prod_path.write_bytes(b"\x00\x01")
+    mock_download.return_value = prod_path
+    mock_query.return_value = [
+        {"minor_version": 0, "file_path": "imap_swapi_l0_raw_20241201_v000.pkts"}
+    ]
+
+    path = _compare_and_write_new_data(
+        instrument=instrument, start_time=start_time, content=b"\x00\x01\x02"
+    )
+
+    expected_path = ScienceFilePath.generate_from_inputs(
+        instrument=instrument,
+        data_level="l0",
+        descriptor="raw",
+        start_time=start_time.strftime("%Y%m%d"),
+        major_version=1,
+        minor_version=1,
+    ).construct_path()
+    assert path == expected_path
+    mock_download.assert_called_once_with("imap_swapi_l0_raw_20241201_v000.pkts")
+
+
+@patch("imap_data_access.webpoda.imap_data_access.download")
+@patch("imap_data_access.webpoda.imap_data_access.query")
 def test_compare_and_write_new_data_changed(mock_query, mock_download, tmp_path):
     instrument = "swapi"
     start_time = datetime.datetime(2024, 12, 1)
@@ -451,11 +479,10 @@ def test_compare_and_write_new_data_changed(mock_query, mock_download, tmp_path)
     prod_path.write_bytes(b"\x00\x01")
     mock_download.return_value = prod_path
 
-    # First call (_latest_l0_minor_version) reports one existing file, second
-    # call (fetching the prod file to compare against) returns its metadata.
-    mock_query.side_effect = [
-        [{"minor_version": 1}],
-        [{"file_path": "imap_swapi_l0_raw_20241201_v001.pkts"}],
+    # One existing L0 file; its file_path is used to download the prod file
+    # to compare against, and its minor_version to compute the next one.
+    mock_query.return_value = [
+        {"minor_version": 1, "file_path": "imap_swapi_l0_raw_20241201_v001.pkts"}
     ]
 
     path = _compare_and_write_new_data(
@@ -486,9 +513,8 @@ def test_compare_and_write_new_data_unchanged(mock_query, mock_download, tmp_pat
     prod_path.write_bytes(b"\x00\x01\x02")
     mock_download.return_value = prod_path
 
-    mock_query.side_effect = [
-        [{"minor_version": 1}],
-        [{"file_path": "imap_swapi_l0_raw_20241201_v001.pkts"}],
+    mock_query.return_value = [
+        {"minor_version": 1, "file_path": "imap_swapi_l0_raw_20241201_v001.pkts"}
     ]
 
     path = _compare_and_write_new_data(
