@@ -411,8 +411,10 @@ def download_daily_data(
             ]
         )
         if not daily_packet_content:
-            print(f"No data found for instrument [{instrument}] on {date}. Skipping.")
-            print("-" * 80)
+            logger.info(
+                f"No data found for instrument [{instrument}] on {date}. Skipping."
+            )
+            logger.info("-" * 80)
             continue
 
         new_l0_path = _compare_and_write_new_data(
@@ -585,12 +587,12 @@ def download_repointing_data(
             ]
         )
         if not pointing_packet_content:
-            print(
+            logger.info(
                 f"No data found for instrument [{instrument}] repoint ID "
                 f"[{current_repoint['repoint_id']}] for {pointing_start} to "
                 f"{pointing_end}. Skipping."
             )
-            print("-" * 80)
+            logger.info("-" * 80)
             continue
 
         new_l0_path = _compare_and_write_new_data(
@@ -673,31 +675,40 @@ def compare_files(current_file_path, new_file_path):
     # So we can skip the hash check if the sizes are different.
     current_size = current_file_path.stat().st_size
     new_size = new_file_path.stat().st_size
-    if current_size != new_size:
-        print("Data has changed")
-        print(f"Prod {current_filename}: (size: {format_size(current_size)})")
-        print(f"New     {new_filename}: (size: {format_size(new_size)})")
-        print("-" * 80)
+
+    if new_size < current_size:
+        logger.warning(
+            f"New file is smaller than production file "
+            f"({format_size(current_size)} vs {format_size(new_size)})"
+        )
+        # We don't want to upload but log a warning and return False to
+        # indicate no new data.
+        return False
+    elif current_size < new_size:
+        logger.info("Data has changed")
+        logger.info(f"Prod {current_filename}: (size: {format_size(current_size)})")
+        logger.info(f"New     {new_filename}: (size: {format_size(new_size)})")
+        logger.info("-" * 80)
         return True
 
     current_hash = file_hash(current_file_path)
     new_hash = file_hash(new_file_path)
 
     if current_hash != new_hash:
-        print("Data has changed")
-        print(
+        logger.info("Data has changed")
+        logger.info(
             f"Prod {current_filename}: (size: {format_size(current_size)}), "
             f"(hash: {current_hash})"
         )
-        print(
+        logger.info(
             f"New     {new_filename}: (size: {format_size(new_size)}), "
             f"(hash: {new_hash})"
         )
-        print("-" * 80)
+        logger.info("-" * 80)
         return True
     else:
-        print(f"Data has not changed for {current_filename}.")
-        print("-" * 80)
+        logger.info(f"Data has not changed for {current_filename}.")
+        logger.info("-" * 80)
         return False
 
 
